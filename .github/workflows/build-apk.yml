@@ -19,17 +19,23 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - uses: android-actions/setup-android@v3
-
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
 
-      - name: Compiler l'APK
-        run: gradle assembleRelease -PversionCode=${{ github.run_number }} --no-daemon --stacktrace
+      - name: Trouver le projet
+        run: |
+          DIR=$(dirname "$(find . -name settings.gradle -not -path '*/node_modules/*' | head -1)")
+          echo "Projet trouvé dans : $DIR"
+          ls -la "$DIR"
+          echo "PROJ=$DIR" >> $GITHUB_ENV
 
-      - name: Renommer
-        run: cp app/build/outputs/apk/release/app-release.apk waf-signage.apk
+      - name: Compiler l'APK
+        run: |
+          cd "$PROJ"
+          echo "sdk.dir=$ANDROID_HOME" > local.properties
+          gradle assembleRelease -PversionCode=${{ github.run_number }} --no-daemon --stacktrace
+          cp app/build/outputs/apk/release/app-release.apk "$GITHUB_WORKSPACE/waf-signage.apk"
 
       - uses: actions/upload-artifact@v4
         with:
