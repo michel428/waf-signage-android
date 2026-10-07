@@ -22,6 +22,13 @@ Chaque nouveau commit recompile une nouvelle version, qui s'installe **par-dessu
    - **Lanceur par défaut** → choisir *WAF Signage* comme appli d'accueil.
    Les pastilles passent au vert quand c'est bon.
 
+## Mises à jour automatiques
+- Dans l'admin signage : **Réglages → Applis des écrans** → renseigne le dépôt GitHub (ex. `ton-compte/waf-signage-android`, dépôt **public**).
+- Chaque boîtier vérifie au lancement puis chaque nuit (3 h – 5 h) et installe la nouvelle version :
+  - Android 12+ : tout seul (à partir de la 2ᵉ mise à jour) ;
+  - avant Android 12 : Android exige une confirmation → menu de l'écran → **Installer la x.y.z** → OK.
+- Sur l'écran de configuration, active la pastille **Mises à jour auto** (« Installer des applis inconnues »).
+
 ## Pendant l'affichage
 - **Menu caché** : touche MENU de la télécommande, **appui long sur OK**, ou 5 tapotements dans le coin haut-gauche (écran tactile).
 - Coupure réseau : écran « On se reconnecte… », l'affichage reprend tout seul.

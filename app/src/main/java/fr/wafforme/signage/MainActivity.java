@@ -32,6 +32,13 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.webkit.RenderProcessGoneDetail;
 import android.webkit.ConsoleMessage;
+import android.webkit.SslErrorHandler;
+import android.net.http.SslError;
+import org.json.JSONObject;
+import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
 
 /**
  * WAF Signage — appli plein écran pour les boîtiers Android des écrans du club.
@@ -55,7 +62,8 @@ public class MainActivity extends Activity {
     private SharedPreferences prefs;
     private final Handler ui = new Handler(Looper.getMainLooper());
     private boolean inPlayer = false;
-    private boolean pairing  = false;   // page d'appairage du serveur (player/pair.php)
+    private boolean pairing  = false;
+    private boolean checkedThisRun = false;  // vérif. de mise à jour faite depuis le lancement   // page d'appairage du serveur (player/pair.php)
 
     // Menu caché
     private long okDownAt = 0;
@@ -74,6 +82,7 @@ public class MainActivity extends Activity {
         if (Build.VERSION.SDK_INT >= 27) { setShowWhenLocked(true); setTurnScreenOn(true); }
         buildWebView();
         hideSystemUi();
+        ui.postDelayed(updateTick, 3 * 60 * 1000L);   // 1re vérification 3 min après le lancement
         loadBoot(getIntent() != null && getIntent().getBooleanExtra("fromBoot", false) ? "#boot" : "");
     }
 
@@ -137,6 +146,15 @@ public class MainActivity extends Activity {
                 if (req.isForMainFrame() && res.getStatusCode() >= 500) onPlayerFailed();
             }
             @Override
+            public void onReceivedSslError(WebView v, SslErrorHandler h, SslError err) {
+                // Vieux boîtiers : autorité Let's Encrypt inconnue du système.
+                // On accepte uniquement pour notre propre serveur (contenu d'affichage).
+                String host = err != null && err.getUrl() != null ? Uri.parse(err.getUrl()).getHost() : null;
+                String ours = Uri.parse(BASE).getHost();
+                if (host != null && host.equals(ours) && err.getPrimaryError() == SslError.SSL_UNTRUSTED) h.proceed();
+                else { h.cancel(); onPlayerFailed(); }
+            }
+            @Override
             public boolean onRenderProcessGone(WebView v, RenderProcessGoneDetail d) {
                 // Le moteur web a planté (mémoire) : on repart d'une WebView neuve
                 ui.post(MainActivity.this::rebuild);
@@ -146,6 +164,22 @@ public class MainActivity extends Activity {
         setContentView(web);
         web.requestFocus();
     }
+
+    // ── Mises à jour : au lancement puis chaque nuit (3 h – 5 h) ──
+    private final Runnable updateTick = new Runnable() {
+        @Override public void run() {
+            java.util.Calendar c = java.util.Calendar.getInstance();
+            String today = c.get(java.util.Calendar.YEAR) + "-" + c.get(java.util.Calendar.DAY_OF_YEAR);
+            int h = c.get(java.util.Calendar.HOUR_OF_DAY);
+            boolean first = !checkedThisRun;
+            if (first || (h >= 3 && h < 5 && !today.equals(prefs.getString("auto_check_day", "")))) {
+                checkedThisRun = true;
+                prefs.edit().putString("auto_check_day", today).apply();
+                Updater.run(MainActivity.this, false, null);
+            }
+            ui.postDelayed(this, 30 * 60 * 1000L);
+        }
+    };
 
     private void rebuild() {
         try { if (web != null) { ((android.view.ViewGroup) web.getParent()).removeView(web); web.destroy(); } } catch (Throwable ignored) {}
@@ -278,6 +312,36 @@ public class MainActivity extends Activity {
         @JavascriptInterface public void pair()        { ui.post(MainActivity.this::openPairing); }
         @JavascriptInterface public void restart()     { ui.post(MainActivity.this::rebuild); }
 
+        /**
+         * Requête HTTP faite par l'appli (pas par la page locale) : pas de
+         * souci de CORS ni d'origine file://. Réponse renvoyée à la page par
+         * window.__http(id, codeHttp, contenu) — code 0 = réseau injoignable.
+         */
+        @JavascriptInterface public void http(final String id, final String url) {
+            new Thread(() -> {
+                int code = 0; String body;
+                HttpURLConnection c = null;
+                try {
+                    c = (HttpURLConnection) new URL(url).openConnection();
+                    c.setConnectTimeout(8000);
+                    c.setReadTimeout(12000);
+                    c.setUseCaches(false);
+                    c.setRequestProperty("Cache-Control", "no-cache");
+                    c.setRequestProperty("User-Agent", "WAFSignageApp/" + BuildConfig.VERSION_NAME);
+                    code = c.getResponseCode();
+                    InputStream in = code >= 400 ? c.getErrorStream() : c.getInputStream();
+                    body = in != null ? read(in) : "";
+                } catch (Throwable t) {
+                    code = 0;
+                    body = t.getClass().getSimpleName() + ": " + t.getMessage();
+                } finally {
+                    if (c != null) c.disconnect();
+                }
+                final String js = "window.__http&&__http(" + JSONObject.quote(id) + "," + code + "," + JSONObject.quote(body) + ")";
+                ui.post(() -> { if (web != null) web.evaluateJavascript(js, null); });
+            }).start();
+        }
+
         @JavascriptInterface public boolean online() {
             try {
                 ConnectivityManager cm = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
@@ -311,6 +375,43 @@ public class MainActivity extends Activity {
             });
         }
         @JavascriptInterface public void openSettings() { ui.post(() -> tryStart(new Intent(Settings.ACTION_SETTINGS))); }
+
+        // ── Mises à jour (menu) ──
+        @JavascriptInterface public String updateInfo() {
+            try {
+                return new org.json.JSONObject()
+                    .put("current", BuildConfig.VERSION_NAME)
+                    .put("latest", prefs.getString("latest_version", ""))
+                    .put("newer", prefs.getInt("latest_code", 0) > BuildConfig.VERSION_CODE)
+                    .put("pending", prefs.getBoolean("update_pending", false))
+                    .put("error", prefs.getString("update_error", ""))
+                    .toString();
+            } catch (Throwable t) { return "{}"; }
+        }
+        @JavascriptInterface public void checkUpdate() {
+            Updater.run(MainActivity.this, true, (state, detail) -> ui.post(() -> {
+                if (web != null) web.evaluateJavascript("window.onUpdateState&&onUpdateState(" + JSONObject.quote(state) + "," + JSONObject.quote(detail) + ")", null);
+            }));
+        }
+        /** Autorisation « Installer des applis inconnues » (Android 8+), nécessaire aux mises à jour. */
+        @JavascriptInterface public boolean updatesOk() {
+            return Build.VERSION.SDK_INT < 26 || getPackageManager().canRequestPackageInstalls();
+        }
+        @JavascriptInterface public void openUpdatesPermission() {
+            ui.post(() -> {
+                if (Build.VERSION.SDK_INT >= 26 && !tryStart(new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:" + getPackageName()))))
+                    tryStart(new Intent(Settings.ACTION_SECURITY_SETTINGS));
+            });
+        }
+    }
+
+    private static String read(InputStream in) throws java.io.IOException {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        byte[] buf = new byte[8192];
+        int n;
+        while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
+        in.close();
+        return out.toString("UTF-8");
     }
 
     private boolean tryStart(Intent i) {
@@ -319,6 +420,7 @@ public class MainActivity extends Activity {
     }
 
     @Override protected void onDestroy() {
+        ui.removeCallbacks(updateTick);
         if (web != null) web.destroy();
         super.onDestroy();
     }

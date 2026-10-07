@@ -7,6 +7,9 @@
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <!-- Android 10+ : nécessaire pour se relancer seule au démarrage du boîtier -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <!-- Mise à jour automatique de l'appli -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <uses-permission android:name="android.permission.UPDATE_PACKAGES_WITHOUT_USER_ACTION" />
 
     <!-- Android 11+ : savoir si l'appli est le lanceur par défaut -->
     <queries>
@@ -28,7 +31,8 @@
         android:allowBackup="false"
         android:hardwareAccelerated="true"
         android:largeHeap="true"
-        android:usesCleartextTraffic="true">
+        android:usesCleartextTraffic="true"
+        android:networkSecurityConfig="@xml/network_security_config">
 
         <activity
             android:name=".MainActivity"
@@ -65,5 +69,8 @@
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
             </intent-filter>
         </receiver>
+        <receiver
+            android:name=".UpdateReceiver"
+            android:exported="false" />
     </application>
 </manifest>

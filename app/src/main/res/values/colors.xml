@@ -3,5 +3,6 @@
     <color name="waf_ink">#0D0B0B</color>
     <color name="waf_coral">#E84D70</color>
     <color name="waf_cream">#FAF6F2</color>
-    <color name="ic_launcher_background">#0D0B0B</color>
+    <color name="ic_launcher_background">#E87F7F</color>
+    <color name="waf_logo">#E87F7F</color>
 </resources>

@@ -10,7 +10,7 @@
         <item name="android:windowFullscreen">true</item>
         <!-- Écran de démarrage système (Android 12+) aux couleurs WAF -->
         <item name="android:windowSplashScreenBackground">@color/waf_ink</item>
-        <item name="android:windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
-        <item name="android:windowSplashScreenIconBackgroundColor">@color/waf_ink</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/ic_launcher_fg</item>
+        <item name="android:windowSplashScreenIconBackgroundColor">@color/waf_logo</item>
     </style>
 </resources>

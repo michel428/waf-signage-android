@@ -24,21 +24,17 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--ink);color:var
 @keyframes in{from{opacity:0;transform:translateY(calc(2*var(--u)))}to{opacity:1;transform:none}}
 
 /* ── Intro ── */
-.logo{width:calc(26*var(--u));height:calc(26*var(--u));overflow:visible}
-.logo .scr{stroke-dasharray:180;stroke-dashoffset:180;animation:draw 1.1s .15s cubic-bezier(.65,0,.35,1) forwards}
-.logo .foot{stroke-dasharray:20;stroke-dashoffset:20;animation:draw .4s 1.05s ease-out forwards}
-.logo .w{stroke-dasharray:90;stroke-dashoffset:90;animation:draw .8s .8s cubic-bezier(.65,0,.35,1) forwards}
-.logo .spark{transform-origin:79px 34px;transform:scale(0) rotate(-90deg);animation:pop .7s 1.4s cubic-bezier(.3,1.6,.5,1) forwards,twinkle 3s 2.4s ease-in-out infinite}
-@keyframes draw{to{stroke-dashoffset:0}}
-@keyframes pop{to{transform:scale(1) rotate(0)}}
-@keyframes twinkle{0%,100%{transform:scale(1) rotate(0)}50%{transform:scale(1.25) rotate(45deg)}}
-.word{display:flex;gap:calc(.4*var(--u));margin-top:calc(3*var(--u));font-weight:700;font-size:calc(11*var(--u));line-height:.9;letter-spacing:-.03em}
-.word span{display:inline-block;opacity:0;transform:translateY(60%);animation:up .7s cubic-bezier(.2,.8,.2,1) forwards}
-.word span:nth-child(1){animation-delay:1.45s}.word span:nth-child(2){animation-delay:1.55s}.word span:nth-child(3){animation-delay:1.65s}
-@keyframes up{to{opacity:1;transform:none}}
-.tag{margin-top:calc(1.6*var(--u));font-weight:500;font-size:calc(2.2*var(--u));letter-spacing:.6em;padding-left:.6em;color:var(--coral);opacity:0;animation:fade .8s 1.9s forwards}
+.logo-wrap{position:relative;width:calc(30*var(--u));height:calc(30*var(--u))}
+.logo-img{position:absolute;inset:0;width:100%;height:100%;opacity:0;transform:scale(.2) rotate(-25deg);filter:drop-shadow(0 calc(2*var(--u)) calc(5*var(--u)) rgba(232,127,127,.35));
+  animation:logo-in 1.1s .2s cubic-bezier(.3,1.5,.5,1) forwards,logo-breathe 4s 1.6s ease-in-out infinite}
+@keyframes logo-in{60%{opacity:1}to{opacity:1;transform:scale(1) rotate(-6deg)}}
+@keyframes logo-breathe{0%,100%{transform:scale(1) rotate(-6deg)}50%{transform:scale(1.04) rotate(-3deg)}}
+.logo-wrap .halo{position:absolute;inset:0;margin:0;border-radius:50%;border:2px solid rgba(232,127,127,.6);opacity:0;animation:halo 2.6s 1s ease-out infinite}
+.logo-wrap .halo.h2{animation-delay:2.3s}
+@keyframes halo{0%{opacity:.8;transform:scale(1)}100%{opacity:0;transform:scale(1.7)}}
+.tag{margin-top:calc(4*var(--u));font-weight:500;font-size:calc(2.2*var(--u));letter-spacing:.6em;padding-left:.6em;color:var(--coral);opacity:0;animation:fade .8s 1.2s forwards}
 @keyframes fade{to{opacity:1}}
-.load{margin-top:calc(6*var(--u));width:calc(34*var(--u));opacity:0;animation:fade .5s 2.1s forwards}
+.load{margin-top:calc(5*var(--u));width:calc(34*var(--u));opacity:0;animation:fade .5s 1.5s forwards}
 .bar{height:calc(.5*var(--u));border-radius:9px;background:rgba(250,246,242,.12);overflow:hidden}
 .bar i{display:block;height:100%;width:30%;border-radius:9px;background:linear-gradient(90deg,var(--coral),#ff8fa8);animation:slide 1.3s ease-in-out infinite}
 @keyframes slide{0%{transform:translateX(-110%)}100%{transform:translateX(340%)}}
@@ -58,7 +54,7 @@ h1{font-weight:700;font-size:calc(6.5*var(--u));line-height:1;letter-spacing:-.0
 .btn.primary:focus,.btn.primary.f{background:var(--coral);color:#fff}
 .mini{position:fixed;left:0;right:0;text-align:center;bottom:calc(2.4*var(--u));font-weight:300;font-size:calc(1.4*var(--u));color:rgba(250,246,242,.35);letter-spacing:.05em}
 .brand{position:fixed;left:calc(4*var(--u));top:calc(3.5*var(--u));display:flex;align-items:center;gap:calc(1*var(--u));font-weight:700;font-size:calc(2.2*var(--u));letter-spacing:-.02em}
-.brand svg{width:calc(4*var(--u));height:calc(4*var(--u))}
+.brand img{width:calc(5*var(--u));height:calc(5*var(--u))}
 .brand small{font-weight:500;font-size:.6em;letter-spacing:.35em;color:var(--coral);margin-left:.3em}
 
 /* ── Prêt : compte à rebours ── */
@@ -76,8 +72,8 @@ h1{font-weight:700;font-size:calc(6.5*var(--u));line-height:1;letter-spacing:-.0
 .card:focus .ic,.card.f .ic{background:rgba(255,255,255,.2);color:#fff}
 .card .tt{font-weight:700;font-size:calc(2.6*var(--u));line-height:1.15}
 .card .dd{font-weight:300;font-size:calc(1.7*var(--u));line-height:1.45;opacity:.75}
-.checks{display:flex;gap:calc(2*var(--u));margin-top:calc(4*var(--u))}
-.chk{font-size:calc(1.6*var(--u));padding:calc(1.1*var(--u)) calc(2*var(--u))}
+.checks{display:flex;gap:calc(1.6*var(--u));margin-top:calc(4*var(--u));flex-wrap:wrap;justify-content:center}
+.chk{font-size:calc(1.6*var(--u));padding:calc(1.1*var(--u)) calc(2*var(--u));white-space:nowrap}
 .chk .dot{width:calc(1.1*var(--u));height:calc(1.1*var(--u));border-radius:50%;background:#e8a24d;box-shadow:0 0 0 calc(.4*var(--u)) rgba(232,162,77,.2)}
 .chk.ok .dot{background:#52a870;box-shadow:0 0 0 calc(.4*var(--u)) rgba(82,168,112,.2)}
 .note{margin-top:calc(2.4*var(--u));font-size:calc(1.7*var(--u));color:#ffb1c2;min-height:1.4em}
@@ -109,31 +105,19 @@ h1{font-weight:700;font-size:calc(6.5*var(--u));line-height:1;letter-spacing:-.0
 <body>
 <div class="bg"><i></i><i></i><b></b></div>
 
-<svg width="0" height="0" style="position:absolute">
-  <symbol id="mark" viewBox="0 0 108 108">
-    <path class="scr" d="M34,34 H74 Q80,34 80,40 V64 Q80,70 74,70 H34 Q28,70 28,64 V40 Q28,34 34,34 Z" fill="none" stroke="#E84D70" stroke-width="4" stroke-linejoin="round"/>
-    <path class="foot" d="M45,78 H63" stroke="#E84D70" stroke-width="4" stroke-linecap="round"/>
-    <path class="w" d="M37.5,42.5 L44,61.5 L54,47.5 L64,61.5 L70.5,42.5" fill="none" stroke="#FAF6F2" stroke-width="5.2" stroke-linecap="round" stroke-linejoin="round"/>
-    <path class="spark" d="M79,27.5 Q80,33 85.5,34 Q80,35 79,40.5 Q78,35 72.5,34 Q78,33 79,27.5 Z" fill="#FAF6F2" stroke="#0D0B0B" stroke-width="2"/>
-  </symbol>
-</svg>
-
 <!-- INTRO -->
 <section class="view" id="v-intro">
-  <svg class="logo" viewBox="0 0 108 108">
-    <path class="scr" d="M34,34 H74 Q80,34 80,40 V64 Q80,70 74,70 H34 Q28,70 28,64 V40 Q28,34 34,34 Z" fill="none" stroke="#E84D70" stroke-width="4" stroke-linejoin="round"/>
-    <path class="foot" d="M45,78 H63" stroke="#E84D70" stroke-width="4" stroke-linecap="round"/>
-    <path class="w" d="M37.5,42.5 L44,61.5 L54,47.5 L64,61.5 L70.5,42.5" fill="none" stroke="#FAF6F2" stroke-width="5.2" stroke-linecap="round" stroke-linejoin="round"/>
-    <path class="spark" d="M79,27.5 Q80,33 85.5,34 Q80,35 79,40.5 Q78,35 72.5,34 Q78,33 79,27.5 Z" fill="#FAF6F2" stroke="#0D0B0B" stroke-width="2"/>
-  </svg>
-  <div class="word"><span>W</span><span>A</span><span>F</span></div>
+  <div class="logo-wrap">
+    <i class="halo"></i><i class="halo h2"></i>
+    <img class="logo-img" src="logo.png" alt="Waf">
+  </div>
   <div class="tag">SIGNAGE</div>
   <div class="load"><div class="bar"><i></i></div><div class="status" id="status">Démarrage…</div></div>
 </section>
 
 <!-- PRÊT -->
 <section class="view" id="v-ready">
-  <div class="eyebrow">Écran</div>
+  <div class="eyebrow" data-scr="Prêt">Écran</div>
   <h1 id="readyName">Accueil</h1>
   <div class="ring"><svg viewBox="0 0 100 100"><circle class="t" cx="50" cy="50" r="45"/><circle class="p" id="ringP" cx="50" cy="50" r="45"/></svg><span id="ringN">5</span></div>
   <div class="sub">Lancement automatique de l'affichage…</div>
@@ -145,7 +129,7 @@ h1{font-weight:700;font-size:calc(6.5*var(--u));line-height:1;letter-spacing:-.0
 
 <!-- CONFIGURATION -->
 <section class="view" id="v-setup">
-  <div class="eyebrow">Bienvenue</div>
+  <div class="eyebrow" data-scr="Bienvenue">Bienvenue</div>
   <h1>Configurer cet écran</h1>
   <div class="sub">Choisis comment relier ce boîtier à WAF Signage.</div>
   <div class="cards">
@@ -155,6 +139,7 @@ h1{font-weight:700;font-size:calc(6.5*var(--u));line-height:1;letter-spacing:-.0
   <div class="checks">
     <button class="btn chk" id="chkAuto" data-go="autostart"><span class="dot"></span><span>Démarrage automatique</span></button>
     <button class="btn chk" id="chkHome" data-go="launcher"><span class="dot"></span><span>Lanceur par défaut</span></button>
+    <button class="btn chk" id="chkUpd" data-go="updperm"><span class="dot"></span><span>Mises à jour auto</span></button>
   </div>
   <div class="note" id="setupNote"></div>
 </section>
@@ -181,6 +166,7 @@ h1{font-weight:700;font-size:calc(6.5*var(--u));line-height:1;letter-spacing:-.0
   <div class="eyebrow">Hors connexion</div>
   <h1>On se reconnecte…</h1>
   <div class="sub">Pas d'accès au serveur pour l'instant. Nouvelle tentative dans <b id="offN">10</b> s — l'affichage reprendra tout seul.</div>
+  <div class="note" id="offErr"></div>
   <div class="row">
     <button class="btn primary" data-go="retry">Réessayer</button>
     <button class="btn" data-go="setup">Changer d'écran</button>
@@ -190,7 +176,7 @@ h1{font-weight:700;font-size:calc(6.5*var(--u));line-height:1;letter-spacing:-.0
 
 <!-- MENU (depuis la lecture) -->
 <section class="view" id="v-menu">
-  <div class="eyebrow">Menu</div>
+  <div class="eyebrow" data-scr="Menu">Menu</div>
   <h1 id="menuName">Accueil</h1>
   <div class="sub" id="menuInfo"></div>
   <div class="row">
@@ -201,11 +187,14 @@ h1{font-weight:700;font-size:calc(6.5*var(--u));line-height:1;letter-spacing:-.0
   <div class="checks">
     <button class="btn chk" id="chkAuto2" data-go="autostart"><span class="dot"></span><span>Démarrage automatique</span></button>
     <button class="btn chk" id="chkHome2" data-go="launcher"><span class="dot"></span><span>Lanceur par défaut</span></button>
-    <button class="btn chk" data-go="settings"><span>Paramètres Android</span></button>
+    <button class="btn chk" id="chkUpd2" data-go="updperm"><span class="dot"></span><span>Mises à jour auto</span></button>
+    <button class="btn chk" data-go="update" id="btnUpd"><span>Rechercher une mise à jour</span></button>
+    <button class="btn chk" data-go="settings" id="btnSettings"><span>Paramètres Android</span></button>
   </div>
+  <div class="note" id="updInfo" style="color:var(--mute)"></div>
 </section>
 
-<div class="brand" id="brand" style="display:none"><svg viewBox="0 0 108 108"><use href="#mark"/></svg>WAF<small>SIGNAGE</small></div>
+<div class="brand" id="brand" style="display:none"><img src="logo.png" alt="Waf"><small>SIGNAGE</small></div>
 <div class="mini" id="mini"></div>
 
 <script>
@@ -232,6 +221,13 @@ h1{font-weight:700;font-size:calc(6.5*var(--u));line-height:1;letter-spacing:-.0
     cur = id;
     $('brand').style.display = id === 'intro' ? 'none' : 'flex';
     $('mini').textContent = 'WAF Signage ' + A.version() + ' · ' + A.device();
+    // PC Linux : pas de « lanceur par défaut », et on indique de quel écran il s'agit
+    if (A.platform && A.platform() === 'linux') {
+      ['chkHome','chkHome2'].forEach(function(i){ var el = $(i); if (el) el.style.display = 'none'; });
+      var bs = $('btnSettings'); if (bs) bs.querySelector('span').textContent = 'Paramètres système';
+      var nm = A.screenName ? A.screenName() : '';
+      document.querySelectorAll('.eyebrow[data-scr]').forEach(function(el){ el.textContent = (nm ? nm + ' · ' : '') + el.getAttribute('data-scr'); });
+    }
     setTimeout(function(){ var b = focusables()[0]; if (b) b.focus(); }, 80);
     if (id === 'setup' || id === 'menu') refreshChecks();
   }
@@ -260,23 +256,66 @@ h1{font-weight:700;font-size:calc(6.5*var(--u));line-height:1;letter-spacing:-.0
     else if (go === 'settings') A.openSettings();
     else if (go === 'autostart') A.openAutostart();
     else if (go === 'launcher') A.openLauncherSettings();
+    else if (go === 'updperm') { if (A.openUpdatesPermission) A.openUpdatesPermission(); }
+    else if (go === 'update') { if (A.checkUpdate) { $('updInfo').textContent = 'Recherche d\'une mise à jour…'; A.checkUpdate(); } }
   });
   // Retour depuis les réglages Android → mettre à jour les pastilles
   document.addEventListener('visibilitychange', function(){ if (!document.hidden) refreshChecks(); });
+  window.refreshChecks = function(){ refreshChecks(); };
   function refreshChecks(){
     var a = !!A.autostartOk(), h = !!A.isLauncher();
+    var u = A.updatesOk ? !!A.updatesOk() : true;
+    ['chkUpd','chkUpd2'].forEach(function(id){ var el = $(id); if (!el) return; el.style.display = A.updatesOk ? '' : 'none'; el.classList.toggle('ok', u); });
+    if (!A.checkUpdate && $('btnUpd')) $('btnUpd').style.display = 'none';
+    showUpdateInfo();
     ['chkAuto','chkAuto2'].forEach(function(id){ var el = $(id); if (el) el.classList.toggle('ok', a); });
     ['chkHome','chkHome2'].forEach(function(id){ var el = $(id); if (el) el.classList.toggle('ok', h); });
   }
 
+  // ── Mises à jour ──
+  function showUpdateInfo(){
+    if (!A.updateInfo || !$('updInfo')) return;
+    var i = {}; try { i = JSON.parse(A.updateInfo()); } catch (e) {}
+    var t = 'Version ' + (i.current || A.version());
+    if (i.newer && i.latest) {
+      t += ' · nouvelle version ' + i.latest + ' disponible';
+      var b = $('btnUpd'); if (b) b.querySelector('span').textContent = 'Installer la ' + i.latest;
+    } else if (i.latest) t += ' · à jour';
+    if (i.auto) t += ' · ' + i.auto;
+    if (i.error) t += ' · dernier échec : ' + i.error;
+    $('updInfo').textContent = t;
+  }
+  window.onUpdateState = function(state, detail){
+    var m = {uptodate:'✓ L\'appli est à jour (' + detail + ').', downloading:'Téléchargement de la version ' + detail + '…',
+             installing:'Installation de la ' + detail + '… confirme sur l\'écran si Android le demande.', error:'Échec de la mise à jour : ' + detail,
+             none:'Mises à jour non configurées (Réglages du signage → Applis des écrans).',
+             linuxnight:'Nouvelle version ' + detail + ' : installée automatiquement cette nuit (ou 10 min après un redémarrage du PC).'};
+    $('updInfo').textContent = m[state] || detail;
+  };
+
   // ── Réseau ──
+  // Requêtes : par l'appli si possible (A.http), sinon fetch (navigateur).
+  // Erreur « net » = serveur injoignable ; sinon le serveur répond mais
+  // l'adresse demandée manque (ex. serveur pas encore mis à jour).
+  var cbs = {}, seq = 0, lastErr = '';
+  window.__http = function(id, code, body){ var c = cbs[id]; if (!c) return; delete cbs[id]; c(code, body); };
   function api(path){
     return new Promise(function(res, rej){
-      var done = false, t = setTimeout(function(){ if (!done) { done = true; rej(new Error('timeout')); } }, 9000);
-      fetch(BASE + path + (path.indexOf('?') < 0 ? '?' : '&') + '_=' + Date.now(), {cache:'no-store'})
-        .then(function(r){ return r.json(); })
-        .then(function(j){ if (done) return; done = true; clearTimeout(t); j && j.success ? res(j.data) : rej(new Error((j && j.error) || 'erreur')); })
-        .catch(function(e){ if (done) return; done = true; clearTimeout(t); rej(e); });
+      var url = BASE + path + (path.indexOf('?') < 0 ? '?' : '&') + '_=' + Date.now();
+      function handle(code, body){
+        if (!code) { lastErr = String(body || 'réseau'); return rej({net:true}); }
+        var j = null; try { j = JSON.parse(body); } catch (e) {}
+        if (code >= 200 && code < 300 && j && j.success) return res(j.data);
+        lastErr = 'HTTP ' + code + ' sur ' + path; rej({net:false, code:code});
+      }
+      if (A.http) {
+        var id = 'r' + (++seq); cbs[id] = handle;
+        setTimeout(function(){ if (cbs[id]) { delete cbs[id]; lastErr = 'délai dépassé'; rej({net:true}); } }, 20000);
+        A.http(id, url);
+      } else {
+        fetch(url, {cache:'no-store'}).then(function(r){ return r.text().then(function(t){ handle(r.status, t); }); })
+          .catch(function(e){ handle(0, String(e)); });
+      }
     });
   }
   function status(t){ $('status').textContent = t; }
@@ -297,7 +336,12 @@ h1{font-weight:700;font-size:calc(6.5*var(--u));line-height:1;letter-spacing:-.0
         show('setup');
         if (slug) $('setupNote').textContent = 'L\'écran « ' + (A.label() || slug) + ' » n\'existe plus dans l\'admin — choisis-en un autre.';
       }
-    }).catch(function(){ offline(); });
+    }).catch(function(err){
+      if (err && err.net) return offline();
+      // Serveur joignable mais liste indisponible : on continue quand même
+      if (A.slug()) { if (fromOffline) A.start(); else ready(5); }
+      else { show('setup'); $('setupNote').textContent = 'Liste des écrans indisponible (' + lastErr + ') — « Nouvel écran » fonctionne quand même.'; }
+    });
   }
 
   function ready(n){
@@ -315,6 +359,7 @@ h1{font-weight:700;font-size:calc(6.5*var(--u));line-height:1;letter-spacing:-.0
 
   function offline(){
     show('offline');
+    $('offErr').textContent = (A.online && !A.online() ? 'Boîtier non connecté au réseau (Wi-Fi / câble). ' : '') + (lastErr ? 'Détail : ' + lastErr : '');
     var left = 10; $('offN').textContent = left;
     timers.push(setInterval(function(){
       left--; $('offN').textContent = Math.max(0, left);
@@ -336,7 +381,7 @@ h1{font-weight:700;font-size:calc(6.5*var(--u));line-height:1;letter-spacing:-.0
         b.addEventListener('click', function(){ A.setScreen(b.getAttribute('data-slug'), b.getAttribute('data-label')); done(b.getAttribute('data-label')); });
       });
       var f = $('grid').querySelector('.btn'); if (f) f.focus();
-    }).catch(function(){ $('grid').innerHTML = '<div class="sub">Serveur injoignable.</div>'; });
+    }).catch(function(){ $('grid').innerHTML = '<div class="sub">Liste indisponible (' + esc(lastErr) + ').</div>'; });
   }
 
   function done(name){
