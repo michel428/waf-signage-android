@@ -376,6 +376,35 @@ public class MainActivity extends Activity {
         }
         @JavascriptInterface public void openSettings() { ui.post(() -> tryStart(new Intent(Settings.ACTION_SETTINGS))); }
 
+        // ── Commandes à distance (admin → Monitoring) ──
+        /** Redémarre complètement l'appli (nouveau processus). */
+        @JavascriptInterface public void appRestart() {
+            ui.post(() -> {
+                try {
+                    Intent i = new Intent(MainActivity.this, MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                    int fl = android.app.PendingIntent.FLAG_CANCEL_CURRENT | (Build.VERSION.SDK_INT >= 23 ? android.app.PendingIntent.FLAG_IMMUTABLE : 0);
+                    android.app.PendingIntent pi = android.app.PendingIntent.getActivity(MainActivity.this, 4242, i, fl);
+                    android.app.AlarmManager am = (android.app.AlarmManager) getSystemService(Context.ALARM_SERVICE);
+                    am.set(android.app.AlarmManager.RTC, System.currentTimeMillis() + 1500, pi);
+                } catch (Throwable t) { rebuild(); return; }
+                finishAffinity();
+                ui.postDelayed(() -> System.exit(0), 300);
+            });
+        }
+        /** Redémarrage du boîtier : seulement si l'appli est « propriétaire de l'appareil » (sinon Android l'interdit) → à défaut, redémarre l'appli. */
+        @JavascriptInterface public void reboot() {
+            try {
+                android.app.admin.DevicePolicyManager dpm = (android.app.admin.DevicePolicyManager) getSystemService(Context.DEVICE_POLICY_SERVICE);
+                if (Build.VERSION.SDK_INT >= 24 && dpm != null && dpm.isDeviceOwnerApp(getPackageName())) {
+                    dpm.reboot(new android.content.ComponentName(MainActivity.this, BootReceiver.class));
+                    return;
+                }
+            } catch (Throwable ignored) {}
+            appRestart();
+        }
+        /** Mise à jour lancée à distance : silencieuse si possible, sinon proposée dans le menu. */
+        @JavascriptInterface public void updateNow() { Updater.run(MainActivity.this, false, null); }
+
         // ── Mises à jour (menu) ──
         @JavascriptInterface public String updateInfo() {
             try {
