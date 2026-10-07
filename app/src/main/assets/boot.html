@@ -287,9 +287,11 @@ h1{font-weight:700;font-size:calc(6.5*var(--u));line-height:1;letter-spacing:-.0
   }
   window.onUpdateState = function(state, detail){
     var m = {uptodate:'✓ L\'appli est à jour (' + detail + ').', downloading:'Téléchargement de la version ' + detail + '…',
-             installing:'Installation de la ' + detail + '… confirme sur l\'écran si Android le demande.', error:'Échec de la mise à jour : ' + detail,
+             installing:'Installation de la ' + detail + '…' + (A.platform && A.platform() === 'linux' ? '' : ' confirme sur l\'écran si Android le demande.'), error:'Échec de la mise à jour : ' + detail,
              none:'Mises à jour non configurées (Réglages du signage → Applis des écrans).',
-             linuxnight:'Nouvelle version ' + detail + ' : installée automatiquement cette nuit (ou 10 min après un redémarrage du PC).'};
+             linuxnight:'Nouvelle version ' + detail + ' : installée automatiquement cette nuit (ou 10 min après un redémarrage du PC).',
+             check:'Recherche d\'une mise à jour…',
+             installed:'✓ Version ' + detail + ' installée — l\'appli redémarre…'};
     $('updInfo').textContent = m[state] || detail;
   };
 
