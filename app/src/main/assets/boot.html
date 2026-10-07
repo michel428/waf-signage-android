@@ -1,0 +1,376 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>WAF Signage</title>
+<style>
+@font-face{font-family:P;src:url(fonts/Poppins-Light.ttf);font-weight:300}
+@font-face{font-family:P;src:url(fonts/Poppins-Medium.ttf);font-weight:500}
+@font-face{font-family:P;src:url(fonts/Poppins-Bold.ttf);font-weight:700}
+:root{--ink:#0d0b0b;--ink2:#1a1616;--coral:#e84d70;--cream:#faf6f2;--mute:#a89c9c;--u:min(.86vw,1.5vh)}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none}
+html,body{width:100%;height:100%;overflow:hidden;background:var(--ink);color:var(--cream);font-family:P,sans-serif}
+/* Fond : halos corail qui respirent */
+.bg{position:fixed;inset:0;overflow:hidden;pointer-events:none}
+.bg i{position:absolute;border-radius:50%;filter:blur(calc(8*var(--u)));opacity:.35;animation:float 14s ease-in-out infinite}
+.bg i:nth-child(1){width:60vmax;height:60vmax;left:-20vmax;top:-25vmax;background:radial-gradient(circle,#e84d70 0,transparent 65%)}
+.bg i:nth-child(2){width:50vmax;height:50vmax;right:-18vmax;bottom:-25vmax;background:radial-gradient(circle,#7a2338 0,transparent 65%);animation-delay:-6s;animation-duration:18s}
+.bg b{position:absolute;inset:0;background:radial-gradient(ellipse at center,transparent 40%,rgba(0,0,0,.55) 100%)}
+@keyframes float{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(4vmax,3vmax) scale(1.08)}}
+
+.view{position:fixed;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:calc(5*var(--u))}
+.view.on{display:flex;animation:in .6s cubic-bezier(.2,.7,.2,1) both}
+@keyframes in{from{opacity:0;transform:translateY(calc(2*var(--u)))}to{opacity:1;transform:none}}
+
+/* ── Intro ── */
+.logo{width:calc(26*var(--u));height:calc(26*var(--u));overflow:visible}
+.logo .scr{stroke-dasharray:180;stroke-dashoffset:180;animation:draw 1.1s .15s cubic-bezier(.65,0,.35,1) forwards}
+.logo .foot{stroke-dasharray:20;stroke-dashoffset:20;animation:draw .4s 1.05s ease-out forwards}
+.logo .w{stroke-dasharray:90;stroke-dashoffset:90;animation:draw .8s .8s cubic-bezier(.65,0,.35,1) forwards}
+.logo .spark{transform-origin:79px 34px;transform:scale(0) rotate(-90deg);animation:pop .7s 1.4s cubic-bezier(.3,1.6,.5,1) forwards,twinkle 3s 2.4s ease-in-out infinite}
+@keyframes draw{to{stroke-dashoffset:0}}
+@keyframes pop{to{transform:scale(1) rotate(0)}}
+@keyframes twinkle{0%,100%{transform:scale(1) rotate(0)}50%{transform:scale(1.25) rotate(45deg)}}
+.word{display:flex;gap:calc(.4*var(--u));margin-top:calc(3*var(--u));font-weight:700;font-size:calc(11*var(--u));line-height:.9;letter-spacing:-.03em}
+.word span{display:inline-block;opacity:0;transform:translateY(60%);animation:up .7s cubic-bezier(.2,.8,.2,1) forwards}
+.word span:nth-child(1){animation-delay:1.45s}.word span:nth-child(2){animation-delay:1.55s}.word span:nth-child(3){animation-delay:1.65s}
+@keyframes up{to{opacity:1;transform:none}}
+.tag{margin-top:calc(1.6*var(--u));font-weight:500;font-size:calc(2.2*var(--u));letter-spacing:.6em;padding-left:.6em;color:var(--coral);opacity:0;animation:fade .8s 1.9s forwards}
+@keyframes fade{to{opacity:1}}
+.load{margin-top:calc(6*var(--u));width:calc(34*var(--u));opacity:0;animation:fade .5s 2.1s forwards}
+.bar{height:calc(.5*var(--u));border-radius:9px;background:rgba(250,246,242,.12);overflow:hidden}
+.bar i{display:block;height:100%;width:30%;border-radius:9px;background:linear-gradient(90deg,var(--coral),#ff8fa8);animation:slide 1.3s ease-in-out infinite}
+@keyframes slide{0%{transform:translateX(-110%)}100%{transform:translateX(340%)}}
+.status{margin-top:calc(1.6*var(--u));font-weight:300;font-size:calc(1.8*var(--u));color:var(--mute);min-height:1.5em}
+
+/* ── Commun ── */
+.eyebrow{font-weight:500;font-size:calc(1.9*var(--u));letter-spacing:.3em;text-transform:uppercase;color:var(--coral)}
+h1{font-weight:700;font-size:calc(6.5*var(--u));line-height:1;letter-spacing:-.03em;margin-top:calc(1.4*var(--u))}
+.sub{font-weight:300;font-size:calc(2.2*var(--u));color:var(--mute);margin-top:calc(1.6*var(--u));max-width:calc(80*var(--u));line-height:1.5}
+.sub b{color:var(--cream);font-weight:500}
+.row{display:flex;gap:calc(2*var(--u));margin-top:calc(4*var(--u));flex-wrap:wrap;justify-content:center}
+.btn{font-family:P;border:none;outline:none;cursor:pointer;display:inline-flex;align-items:center;gap:calc(1*var(--u));
+  padding:calc(1.5*var(--u)) calc(3*var(--u));border-radius:calc(1.2*var(--u));background:rgba(250,246,242,.07);color:var(--cream);
+  font-weight:500;font-size:calc(2*var(--u));box-shadow:inset 0 0 0 2px rgba(250,246,242,.1);transition:transform .2s,background .2s,box-shadow .2s}
+.btn:focus,.btn.f{background:var(--coral);color:#fff;box-shadow:0 calc(.8*var(--u)) calc(3*var(--u)) rgba(232,77,112,.45);transform:scale(1.06)}
+.btn.primary{background:var(--cream);color:var(--ink)}
+.btn.primary:focus,.btn.primary.f{background:var(--coral);color:#fff}
+.mini{position:fixed;left:0;right:0;text-align:center;bottom:calc(2.4*var(--u));font-weight:300;font-size:calc(1.4*var(--u));color:rgba(250,246,242,.35);letter-spacing:.05em}
+.brand{position:fixed;left:calc(4*var(--u));top:calc(3.5*var(--u));display:flex;align-items:center;gap:calc(1*var(--u));font-weight:700;font-size:calc(2.2*var(--u));letter-spacing:-.02em}
+.brand svg{width:calc(4*var(--u));height:calc(4*var(--u))}
+.brand small{font-weight:500;font-size:.6em;letter-spacing:.35em;color:var(--coral);margin-left:.3em}
+
+/* ── Prêt : compte à rebours ── */
+.ring{position:relative;width:calc(13*var(--u));height:calc(13*var(--u));margin-top:calc(4*var(--u))}
+.ring svg{width:100%;height:100%;transform:rotate(-90deg)}
+.ring circle{fill:none;stroke-width:5}
+.ring .t{stroke:rgba(250,246,242,.1)}
+.ring .p{stroke:var(--coral);stroke-linecap:round;stroke-dasharray:283;stroke-dashoffset:0}
+.ring span{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:calc(5*var(--u))}
+
+/* ── Configuration ── */
+.cards{display:flex;gap:calc(3*var(--u));margin-top:calc(4.5*var(--u))}
+.card{width:calc(36*var(--u));padding:calc(3.4*var(--u)) calc(3*var(--u));border-radius:calc(2.2*var(--u));text-align:left;flex-direction:column;align-items:flex-start;gap:calc(1.2*var(--u))}
+.card .ic{width:calc(6*var(--u));height:calc(6*var(--u));border-radius:calc(1.4*var(--u));display:flex;align-items:center;justify-content:center;background:rgba(232,77,112,.15);color:var(--coral);font-size:calc(3*var(--u));margin-bottom:calc(.8*var(--u))}
+.card:focus .ic,.card.f .ic{background:rgba(255,255,255,.2);color:#fff}
+.card .tt{font-weight:700;font-size:calc(2.6*var(--u));line-height:1.15}
+.card .dd{font-weight:300;font-size:calc(1.7*var(--u));line-height:1.45;opacity:.75}
+.checks{display:flex;gap:calc(2*var(--u));margin-top:calc(4*var(--u))}
+.chk{font-size:calc(1.6*var(--u));padding:calc(1.1*var(--u)) calc(2*var(--u))}
+.chk .dot{width:calc(1.1*var(--u));height:calc(1.1*var(--u));border-radius:50%;background:#e8a24d;box-shadow:0 0 0 calc(.4*var(--u)) rgba(232,162,77,.2)}
+.chk.ok .dot{background:#52a870;box-shadow:0 0 0 calc(.4*var(--u)) rgba(82,168,112,.2)}
+.note{margin-top:calc(2.4*var(--u));font-size:calc(1.7*var(--u));color:#ffb1c2;min-height:1.4em}
+
+/* ── Code ── */
+.code{display:flex;gap:calc(1.4*var(--u));margin-top:calc(4*var(--u))}
+.code span{width:calc(10*var(--u));height:calc(13*var(--u));border-radius:calc(1.6*var(--u));background:rgba(250,246,242,.06);box-shadow:inset 0 0 0 2px rgba(250,246,242,.12);
+  display:flex;align-items:center;justify-content:center;font-weight:700;font-size:calc(8*var(--u));opacity:0;transform:translateY(30%) rotateX(60deg);animation:digit .6s cubic-bezier(.2,.8,.2,1) forwards}
+.code span:nth-child(4){margin-left:calc(2*var(--u))}
+@keyframes digit{to{opacity:1;transform:none}}
+.wait{display:flex;gap:calc(.8*var(--u));margin-top:calc(3.5*var(--u))}
+.wait i{width:calc(1*var(--u));height:calc(1*var(--u));border-radius:50%;background:var(--coral);animation:pulse 1.4s ease-in-out infinite}
+.wait i:nth-child(2){animation-delay:.2s}.wait i:nth-child(3){animation-delay:.4s}
+@keyframes pulse{0%,100%{opacity:.25;transform:scale(1)}50%{opacity:1;transform:scale(1.4)}}
+
+/* ── Liste ── */
+.grid{display:grid;grid-template-columns:repeat(3,calc(26*var(--u)));gap:calc(1.8*var(--u));margin-top:calc(4*var(--u));max-height:60vh;overflow:hidden;padding:calc(1.2*var(--u))}
+.sc{flex-direction:column;align-items:flex-start;padding:calc(2*var(--u)) calc(2.4*var(--u));text-align:left}
+.sc .tt{font-weight:700;font-size:calc(2.3*var(--u))}
+.sc .dd{font-weight:300;font-size:calc(1.4*var(--u));opacity:.6}
+
+/* ── Hors connexion / succès ── */
+.big-ic{width:calc(12*var(--u));height:calc(12*var(--u));border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(232,77,112,.12);color:var(--coral);margin-bottom:calc(3*var(--u))}
+.big-ic svg{width:55%;height:55%}
+.big-ic.ok{background:rgba(82,168,112,.15);color:#52a870;animation:pop2 .6s cubic-bezier(.3,1.6,.5,1) both}
+@keyframes pop2{from{transform:scale(.3);opacity:0}}
+</style>
+</head>
+<body>
+<div class="bg"><i></i><i></i><b></b></div>
+
+<svg width="0" height="0" style="position:absolute">
+  <symbol id="mark" viewBox="0 0 108 108">
+    <path class="scr" d="M34,34 H74 Q80,34 80,40 V64 Q80,70 74,70 H34 Q28,70 28,64 V40 Q28,34 34,34 Z" fill="none" stroke="#E84D70" stroke-width="4" stroke-linejoin="round"/>
+    <path class="foot" d="M45,78 H63" stroke="#E84D70" stroke-width="4" stroke-linecap="round"/>
+    <path class="w" d="M37.5,42.5 L44,61.5 L54,47.5 L64,61.5 L70.5,42.5" fill="none" stroke="#FAF6F2" stroke-width="5.2" stroke-linecap="round" stroke-linejoin="round"/>
+    <path class="spark" d="M79,27.5 Q80,33 85.5,34 Q80,35 79,40.5 Q78,35 72.5,34 Q78,33 79,27.5 Z" fill="#FAF6F2" stroke="#0D0B0B" stroke-width="2"/>
+  </symbol>
+</svg>
+
+<!-- INTRO -->
+<section class="view" id="v-intro">
+  <svg class="logo" viewBox="0 0 108 108">
+    <path class="scr" d="M34,34 H74 Q80,34 80,40 V64 Q80,70 74,70 H34 Q28,70 28,64 V40 Q28,34 34,34 Z" fill="none" stroke="#E84D70" stroke-width="4" stroke-linejoin="round"/>
+    <path class="foot" d="M45,78 H63" stroke="#E84D70" stroke-width="4" stroke-linecap="round"/>
+    <path class="w" d="M37.5,42.5 L44,61.5 L54,47.5 L64,61.5 L70.5,42.5" fill="none" stroke="#FAF6F2" stroke-width="5.2" stroke-linecap="round" stroke-linejoin="round"/>
+    <path class="spark" d="M79,27.5 Q80,33 85.5,34 Q80,35 79,40.5 Q78,35 72.5,34 Q78,33 79,27.5 Z" fill="#FAF6F2" stroke="#0D0B0B" stroke-width="2"/>
+  </svg>
+  <div class="word"><span>W</span><span>A</span><span>F</span></div>
+  <div class="tag">SIGNAGE</div>
+  <div class="load"><div class="bar"><i></i></div><div class="status" id="status">Démarrage…</div></div>
+</section>
+
+<!-- PRÊT -->
+<section class="view" id="v-ready">
+  <div class="eyebrow">Écran</div>
+  <h1 id="readyName">Accueil</h1>
+  <div class="ring"><svg viewBox="0 0 100 100"><circle class="t" cx="50" cy="50" r="45"/><circle class="p" id="ringP" cx="50" cy="50" r="45"/></svg><span id="ringN">5</span></div>
+  <div class="sub">Lancement automatique de l'affichage…</div>
+  <div class="row">
+    <button class="btn primary" data-go="start">▶&nbsp; Lancer maintenant</button>
+    <button class="btn" data-go="setup">Changer d'écran</button>
+  </div>
+</section>
+
+<!-- CONFIGURATION -->
+<section class="view" id="v-setup">
+  <div class="eyebrow">Bienvenue</div>
+  <h1>Configurer cet écran</h1>
+  <div class="sub">Choisis comment relier ce boîtier à WAF Signage.</div>
+  <div class="cards">
+    <button class="btn card" data-go="pair"><span class="ic">#</span><span class="tt">Nouvel écran</span><span class="dd">Le code d'association s'affiche : saisis-le dans l'admin, <b>Écrans → Associer un écran</b>.</span></button>
+    <button class="btn card" data-go="list"><span class="ic">▦</span><span class="tt">Écran existant</span><span class="dd">Reprendre un écran déjà créé (Accueil, Salle de cours…).</span></button>
+  </div>
+  <div class="checks">
+    <button class="btn chk" id="chkAuto" data-go="autostart"><span class="dot"></span><span>Démarrage automatique</span></button>
+    <button class="btn chk" id="chkHome" data-go="launcher"><span class="dot"></span><span>Lanceur par défaut</span></button>
+  </div>
+  <div class="note" id="setupNote"></div>
+</section>
+
+<!-- LISTE DES ÉCRANS -->
+<section class="view" id="v-list">
+  <div class="eyebrow">Écran existant</div>
+  <h1>Quel écran est-ce ?</h1>
+  <div class="grid" id="grid"></div>
+  <div class="row"><button class="btn" data-go="setup">← Retour</button></div>
+</section>
+
+<!-- ASSOCIÉ -->
+<section class="view" id="v-done">
+  <div class="big-ic ok"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div>
+  <div class="eyebrow">C'est prêt</div>
+  <h1 id="doneName">Accueil</h1>
+  <div class="sub">L'affichage démarre…</div>
+</section>
+
+<!-- HORS CONNEXION -->
+<section class="view" id="v-offline">
+  <div class="big-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 8.8a15 15 0 0 1 20 0M5 12.6a10 10 0 0 1 14 0M8.5 16.3a5 5 0 0 1 7 0"/><circle cx="12" cy="20" r="1" fill="currentColor"/><path d="M3 3l18 18"/></svg></div>
+  <div class="eyebrow">Hors connexion</div>
+  <h1>On se reconnecte…</h1>
+  <div class="sub">Pas d'accès au serveur pour l'instant. Nouvelle tentative dans <b id="offN">10</b> s — l'affichage reprendra tout seul.</div>
+  <div class="row">
+    <button class="btn primary" data-go="retry">Réessayer</button>
+    <button class="btn" data-go="setup">Changer d'écran</button>
+    <button class="btn" data-go="settings">Paramètres Android</button>
+  </div>
+</section>
+
+<!-- MENU (depuis la lecture) -->
+<section class="view" id="v-menu">
+  <div class="eyebrow">Menu</div>
+  <h1 id="menuName">Accueil</h1>
+  <div class="sub" id="menuInfo"></div>
+  <div class="row">
+    <button class="btn primary" data-go="start">▶&nbsp; Reprendre l'affichage</button>
+    <button class="btn" data-go="restart">Recharger</button>
+    <button class="btn" data-go="setup">Changer d'écran</button>
+  </div>
+  <div class="checks">
+    <button class="btn chk" id="chkAuto2" data-go="autostart"><span class="dot"></span><span>Démarrage automatique</span></button>
+    <button class="btn chk" id="chkHome2" data-go="launcher"><span class="dot"></span><span>Lanceur par défaut</span></button>
+    <button class="btn chk" data-go="settings"><span>Paramètres Android</span></button>
+  </div>
+</section>
+
+<div class="brand" id="brand" style="display:none"><svg viewBox="0 0 108 108"><use href="#mark"/></svg>WAF<small>SIGNAGE</small></div>
+<div class="mini" id="mini"></div>
+
+<script>
+(function(){
+  // Pont natif (appli Android). Ouvert dans un navigateur : version de démo.
+  var A = window.WafApp || {
+    baseUrl:function(){return 'https://signage.waf-forme.fr';}, version:function(){return 'web';}, device:function(){return navigator.userAgent.slice(0,40);},
+    slug:function(){return localStorage.getItem('slug')||'';}, label:function(){return localStorage.getItem('label')||'';},
+    setScreen:function(s,l){localStorage.setItem('slug',s);localStorage.setItem('label',l||s);}, clearScreen:function(){localStorage.removeItem('slug');},
+    start:function(){location.href=this.baseUrl()+'/player/?screen='+encodeURIComponent(this.slug());}, pair:function(){location.href=this.baseUrl()+'/player/pair.php';}, restart:function(){location.reload();},
+    online:function(){return navigator.onLine;}, autostartOk:function(){return true;}, openAutostart:function(){}, isLauncher:function(){return false;},
+    openLauncherSettings:function(){}, openSettings:function(){}
+  };
+  var BASE = A.baseUrl();
+  var timers = [];
+  function clearTimers(){ timers.forEach(function(t){clearTimeout(t);clearInterval(t);}); timers = []; }
+  function $(id){ return document.getElementById(id); }
+
+  // ── Vues + navigation télécommande ──
+  var cur = null;
+  function show(id){
+    clearTimers();
+    document.querySelectorAll('.view').forEach(function(v){ v.classList.toggle('on', v.id === 'v-'+id); });
+    cur = id;
+    $('brand').style.display = id === 'intro' ? 'none' : 'flex';
+    $('mini').textContent = 'WAF Signage ' + A.version() + ' · ' + A.device();
+    setTimeout(function(){ var b = focusables()[0]; if (b) b.focus(); }, 80);
+    if (id === 'setup' || id === 'menu') refreshChecks();
+  }
+  function focusables(){ var v = document.querySelector('.view.on'); return v ? Array.prototype.slice.call(v.querySelectorAll('.btn')) : []; }
+  document.addEventListener('keydown', function(e){
+    var k = e.key || '', list = focusables(); if (!list.length) return;
+    var i = list.indexOf(document.activeElement);
+    if (k === 'ArrowRight' || k === 'ArrowDown') { (list[i+1] || list[0]).focus(); e.preventDefault(); }
+    else if (k === 'ArrowLeft' || k === 'ArrowUp') { (list[i-1] || list[list.length-1]).focus(); e.preventDefault(); }
+    else if (k === 'Enter' || e.keyCode === 23) { if (i >= 0) { list[i].click(); e.preventDefault(); } }
+  });
+  window.appBack = function(){
+    if (cur === 'list') show('setup');
+    else if (cur === 'setup' && A.slug()) ready(3);
+    else if (cur === 'menu') A.start();
+  };
+  document.addEventListener('click', function(e){
+    var b = e.target.closest('[data-go]'); if (!b) return;
+    var go = b.getAttribute('data-go');
+    if (go === 'start') A.start();
+    else if (go === 'restart') A.restart();
+    else if (go === 'setup') show('setup');
+    else if (go === 'pair') A.pair();   // page de code du serveur (player/pair.php)
+    else if (go === 'list') list();
+    else if (go === 'retry') decide(true);
+    else if (go === 'settings') A.openSettings();
+    else if (go === 'autostart') A.openAutostart();
+    else if (go === 'launcher') A.openLauncherSettings();
+  });
+  // Retour depuis les réglages Android → mettre à jour les pastilles
+  document.addEventListener('visibilitychange', function(){ if (!document.hidden) refreshChecks(); });
+  function refreshChecks(){
+    var a = !!A.autostartOk(), h = !!A.isLauncher();
+    ['chkAuto','chkAuto2'].forEach(function(id){ var el = $(id); if (el) el.classList.toggle('ok', a); });
+    ['chkHome','chkHome2'].forEach(function(id){ var el = $(id); if (el) el.classList.toggle('ok', h); });
+  }
+
+  // ── Réseau ──
+  function api(path){
+    return new Promise(function(res, rej){
+      var done = false, t = setTimeout(function(){ if (!done) { done = true; rej(new Error('timeout')); } }, 9000);
+      fetch(BASE + path + (path.indexOf('?') < 0 ? '?' : '&') + '_=' + Date.now(), {cache:'no-store'})
+        .then(function(r){ return r.json(); })
+        .then(function(j){ if (done) return; done = true; clearTimeout(t); j && j.success ? res(j.data) : rej(new Error((j && j.error) || 'erreur')); })
+        .catch(function(e){ if (done) return; done = true; clearTimeout(t); rej(e); });
+    });
+  }
+  function status(t){ $('status').textContent = t; }
+
+  // ── Démarrage ──
+  function decide(fromOffline){
+    status('Connexion au serveur…');
+    api('/api/screens-list.php').then(function(d){
+      var slug = A.slug(), screens = d.screens || [], found = null;
+      screens.forEach(function(s){ if (s.slug === slug) found = s; });
+      if (slug && found) {
+        A.setScreen(found.slug, found.label);
+        if (fromOffline) { status('Reconnexion ✓'); A.start(); return; }
+        ready(5);
+      } else if (slug && !screens.length) {
+        ready(5);                      // liste vide (serveur en maintenance ?) : on tente quand même
+      } else {
+        show('setup');
+        if (slug) $('setupNote').textContent = 'L\'écran « ' + (A.label() || slug) + ' » n\'existe plus dans l\'admin — choisis-en un autre.';
+      }
+    }).catch(function(){ offline(); });
+  }
+
+  function ready(n){
+    show('ready');
+    $('readyName').textContent = A.label() || A.slug();
+    var left = n, total = n, p = $('ringP');
+    $('ringN').textContent = left;
+    p.style.transition = 'none'; p.style.strokeDashoffset = 0;
+    setTimeout(function(){ p.style.transition = 'stroke-dashoffset ' + total + 's linear'; p.style.strokeDashoffset = 283; }, 50);
+    timers.push(setInterval(function(){
+      left--; $('ringN').textContent = Math.max(0, left);
+      if (left <= 0) { clearTimers(); A.start(); }
+    }, 1000));
+  }
+
+  function offline(){
+    show('offline');
+    var left = 10; $('offN').textContent = left;
+    timers.push(setInterval(function(){
+      left--; $('offN').textContent = Math.max(0, left);
+      if (left <= 0) { clearTimers(); decide(true); }
+    }, 1000));
+  }
+
+  // ── Écran existant ──
+  function list(){
+    show('list');
+    $('grid').innerHTML = '<div class="sub">Chargement…</div>';
+    api('/api/screens-list.php').then(function(d){
+      var html = '';
+      (d.screens || []).forEach(function(s){
+        html += '<button class="btn sc" data-slug="' + esc(s.slug) + '" data-label="' + esc(s.label) + '"><span class="tt">' + esc(s.label) + '</span><span class="dd">' + esc(s.slug) + '</span></button>';
+      });
+      $('grid').innerHTML = html || '<div class="sub">Aucun écran pour l\'instant — utilise « Nouvel écran ».</div>';
+      $('grid').querySelectorAll('.sc').forEach(function(b){
+        b.addEventListener('click', function(){ A.setScreen(b.getAttribute('data-slug'), b.getAttribute('data-label')); done(b.getAttribute('data-label')); });
+      });
+      var f = $('grid').querySelector('.btn'); if (f) f.focus();
+    }).catch(function(){ $('grid').innerHTML = '<div class="sub">Serveur injoignable.</div>'; });
+  }
+
+  function done(name){
+    show('done'); $('doneName').textContent = name;
+    timers.push(setTimeout(function(){ A.start(); }, 2200));
+  }
+
+  function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+
+  // ── Point d'entrée ──
+  var h = location.hash;
+  if (h === '#menu') {
+    show('menu');
+    $('menuName').textContent = A.label() || A.slug() || 'Non configuré';
+    $('menuInfo').textContent = 'Retour automatique à l\'affichage dans 30 s.';
+    var idle = setTimeout(function(){ A.start(); }, 30000);
+    document.addEventListener('keydown', function(){ clearTimeout(idle); $('menuInfo').textContent = ''; }, {once:true});
+  } else if (h === '#offline') {
+    offline();
+  } else if (h === '#setup') {
+    show('setup');
+  } else if (h === '#paired') {
+    // Associé via le code : on récupère le nom de l'écran puis on lance
+    api('/api/screens-list.php').then(function(d){
+      (d.screens || []).forEach(function(s){ if (s.slug === A.slug()) A.setScreen(s.slug, s.label); });
+      done(A.label() || A.slug());
+    }).catch(function(){ done(A.slug()); });
+  } else {
+    show('intro');
+    var steps = ['Démarrage…', 'Connexion au serveur…'];
+    status(steps[0]);
+    setTimeout(function(){ decide(false); }, 2800);
+  }
+})();
+</script>
+</body>
+</html>

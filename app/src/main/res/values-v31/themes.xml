@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.Waf" parent="@android:style/Theme.Material.NoActionBar.Fullscreen">
+        <item name="android:windowBackground">@drawable/launch_bg</item>
+        <item name="android:colorPrimary">@color/waf_ink</item>
+        <item name="android:colorAccent">@color/waf_coral</item>
+        <item name="android:statusBarColor">@color/waf_ink</item>
+        <item name="android:navigationBarColor">@color/waf_ink</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowFullscreen">true</item>
+        <!-- Écran de démarrage système (Android 12+) aux couleurs WAF -->
+        <item name="android:windowSplashScreenBackground">@color/waf_ink</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
+        <item name="android:windowSplashScreenIconBackgroundColor">@color/waf_ink</item>
+    </style>
+</resources>

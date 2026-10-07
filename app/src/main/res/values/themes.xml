@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.Waf" parent="@android:style/Theme.Material.NoActionBar.Fullscreen">
+        <item name="android:windowBackground">@drawable/launch_bg</item>
+        <item name="android:colorPrimary">@color/waf_ink</item>
+        <item name="android:colorPrimaryDark">@color/waf_ink</item>
+        <item name="android:colorAccent">@color/waf_coral</item>
+        <item name="android:statusBarColor">@color/waf_ink</item>
+        <item name="android:navigationBarColor">@color/waf_ink</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowContentOverlay">@null</item>
+    </style>
+</resources>

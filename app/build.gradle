@@ -1,0 +1,54 @@
+plugins {
+    id 'com.android.application'
+}
+
+// Numéro de version : fourni par GitHub Actions (-PversionCode=…), sinon 1
+def vc = (project.findProperty('versionCode') ?: '1').toString().toInteger()
+
+android {
+    namespace 'fr.wafforme.signage'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId 'fr.wafforme.signage'
+        minSdk 21
+        targetSdk 34
+        versionCode vc
+        versionName "2.0.${vc}"
+        // URL du serveur signage — à changer ici si le domaine change
+        buildConfigField 'String', 'BASE_URL', '"https://signage.waf-forme.fr"'
+    }
+
+    buildFeatures { buildConfig true }
+
+    // Clé de signature fixe (dans le dépôt) : chaque nouvelle version
+    // s'installe par-dessus l'ancienne sans désinstaller.
+    signingConfigs {
+        waf {
+            storeFile file('waf-signage.keystore')
+            storePassword 'wafsignage'
+            keyAlias 'waf'
+            keyPassword 'wafsignage'
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.waf
+        }
+        debug {
+            signingConfig signingConfigs.waf
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    lint {
+        abortOnError false
+        checkReleaseBuilds false
+    }
+}
