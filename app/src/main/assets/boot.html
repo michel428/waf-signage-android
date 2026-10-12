@@ -89,6 +89,13 @@ h1{font-weight:700;font-size:calc(6.5*var(--u));line-height:1;letter-spacing:-.0
 .wait i:nth-child(2){animation-delay:.2s}.wait i:nth-child(3){animation-delay:.4s}
 @keyframes pulse{0%,100%{opacity:.25;transform:scale(1)}50%{opacity:1;transform:scale(1.4)}}
 
+/* ── Code d'installation ── */
+.pin-dots{display:flex;gap:calc(1.6*var(--u));margin-top:calc(3.5*var(--u));min-height:calc(2.2*var(--u))}
+.pin-dots i{width:calc(2*var(--u));height:calc(2*var(--u));border-radius:50%;box-shadow:inset 0 0 0 2px rgba(250,246,242,.35);transition:background .2s,transform .2s}
+.pin-dots i.on{background:var(--coral);box-shadow:none;transform:scale(1.15)}
+.pin-pad{display:grid;grid-template-columns:repeat(3,calc(10*var(--u)));gap:calc(1.2*var(--u));margin-top:calc(3*var(--u))}
+.pin-pad .btn{justify-content:center;font-size:calc(2.8*var(--u));font-weight:700;padding:calc(1.4*var(--u)) 0}
+
 /* ── Liste ── */
 .grid{display:grid;grid-template-columns:repeat(3,calc(26*var(--u)));gap:calc(1.8*var(--u));margin-top:calc(4*var(--u));max-height:60vh;overflow:hidden;padding:calc(1.2*var(--u))}
 .sc{flex-direction:column;align-items:flex-start;padding:calc(2*var(--u)) calc(2.4*var(--u));text-align:left}
@@ -142,6 +149,22 @@ h1{font-weight:700;font-size:calc(6.5*var(--u));line-height:1;letter-spacing:-.0
     <button class="btn chk" id="chkUpd" data-go="updperm"><span class="dot"></span><span>Mises à jour auto</span></button>
   </div>
   <div class="note" id="setupNote"></div>
+</section>
+
+<!-- CODE D'INSTALLATION -->
+<section class="view" id="v-pin">
+  <div class="eyebrow">Écran existant</div>
+  <h1>Code d'installation</h1>
+  <div class="sub">Le code se trouve dans l'admin : <b>Réglages → Applis des écrans</b>.</div>
+  <div class="pin-dots" id="pinDots"></div>
+  <div class="pin-pad">
+    <button class="btn" data-pin="1">1</button><button class="btn" data-pin="2">2</button><button class="btn" data-pin="3">3</button>
+    <button class="btn" data-pin="4">4</button><button class="btn" data-pin="5">5</button><button class="btn" data-pin="6">6</button>
+    <button class="btn" data-pin="7">7</button><button class="btn" data-pin="8">8</button><button class="btn" data-pin="9">9</button>
+    <button class="btn" data-pin="del">⌫</button><button class="btn" data-pin="0">0</button><button class="btn primary" data-pin="ok">OK</button>
+  </div>
+  <div class="note" id="pinNote"></div>
+  <div class="row"><button class="btn" data-go="setup">← Retour</button></div>
 </section>
 
 <!-- LISTE DES ÉCRANS -->
@@ -200,12 +223,19 @@ h1{font-weight:700;font-size:calc(6.5*var(--u));line-height:1;letter-spacing:-.0
 <script>
 (function(){
   // Pont natif (appli Android). Ouvert dans un navigateur : version de démo.
+  // Pont natif (appli Android / Linux). Sinon : « web player » (navigateur
+  // d'une TV, page servie par le serveur signage sur /player/app/).
+  var LS = { get:function(k){ try { return localStorage.getItem('waf_' + k) || ''; } catch (e) { return ''; } },
+             set:function(k, v){ try { localStorage.setItem('waf_' + k, v); } catch (e) {} } };
   var A = window.WafApp || {
-    baseUrl:function(){return 'https://signage.waf-forme.fr';}, version:function(){return 'web';}, device:function(){return navigator.userAgent.slice(0,40);},
-    slug:function(){return localStorage.getItem('slug')||'';}, label:function(){return localStorage.getItem('label')||'';},
-    setScreen:function(s,l){localStorage.setItem('slug',s);localStorage.setItem('label',l||s);}, clearScreen:function(){localStorage.removeItem('slug');},
-    start:function(){location.href=this.baseUrl()+'/player/?screen='+encodeURIComponent(this.slug());}, pair:function(){location.href=this.baseUrl()+'/player/pair.php';}, restart:function(){location.reload();},
-    online:function(){return navigator.onLine;}, autostartOk:function(){return true;}, openAutostart:function(){}, isLauncher:function(){return false;},
+    platform:function(){return 'web';},
+    baseUrl:function(){return /^https?:/.test(location.protocol) ? location.origin : 'https://signage.waf-forme.fr';},
+    version:function(){return 'web';}, device:function(){return 'Navigateur';},
+    slug:function(){return LS.get('slug');}, label:function(){return LS.get('label');},
+    setScreen:function(s,l){LS.set('slug', s || ''); LS.set('label', l || s || '');}, clearScreen:function(){LS.set('slug', ''); LS.set('label', '');},
+    start:function(){location.href=this.baseUrl()+'/player/?screen='+encodeURIComponent(this.slug())+'&app=web';},
+    pair:function(){location.href=this.baseUrl()+'/player/pair.php?from=app';}, restart:function(){location.reload();},
+    online:function(){return navigator.onLine;}, autostartOk:function(){return true;}, openAutostart:function(){}, isLauncher:function(){return true;},
     openLauncherSettings:function(){}, openSettings:function(){}
   };
   var BASE = A.baseUrl();
@@ -222,6 +252,10 @@ h1{font-weight:700;font-size:calc(6.5*var(--u));line-height:1;letter-spacing:-.0
     $('brand').style.display = id === 'intro' ? 'none' : 'flex';
     $('mini').textContent = 'WAF Signage ' + A.version() + ' · ' + A.device();
     // PC Linux : pas de « lanceur par défaut », et on indique de quel écran il s'agit
+    // Web player : pas de réglages système à proposer
+    if (A.platform && A.platform() === 'web') {
+      document.querySelectorAll('.checks, [data-go="settings"]').forEach(function(el){ el.style.display = 'none'; });
+    }
     if (A.platform && A.platform() === 'linux') {
       ['chkHome','chkHome2'].forEach(function(i){ var el = $(i); if (el) el.style.display = 'none'; });
       var bs = $('btnSettings'); if (bs) bs.querySelector('span').textContent = 'Paramètres système';
@@ -240,7 +274,7 @@ h1{font-weight:700;font-size:calc(6.5*var(--u));line-height:1;letter-spacing:-.0
     else if (k === 'Enter' || e.keyCode === 23) { if (i >= 0) { list[i].click(); e.preventDefault(); } }
   });
   window.appBack = function(){
-    if (cur === 'list') show('setup');
+    if (cur === 'list' || cur === 'pin') show('setup');
     else if (cur === 'setup' && A.slug()) ready(3);
     else if (cur === 'menu') A.start();
   };
@@ -308,7 +342,7 @@ h1{font-weight:700;font-size:calc(6.5*var(--u));line-height:1;letter-spacing:-.0
         if (!code) { lastErr = String(body || 'réseau'); return rej({net:true}); }
         var j = null; try { j = JSON.parse(body); } catch (e) {}
         if (code >= 200 && code < 300 && j && j.success) return res(j.data);
-        lastErr = 'HTTP ' + code + ' sur ' + path; rej({net:false, code:code});
+        lastErr = 'HTTP ' + code + ' sur ' + path; rej({net:false, code:code, error:(j && j.error) || ''});
       }
       if (A.http) {
         var id = 'r' + (++seq); cbs[id] = handle;
@@ -325,14 +359,15 @@ h1{font-weight:700;font-size:calc(6.5*var(--u));line-height:1;letter-spacing:-.0
   // ── Démarrage ──
   function decide(fromOffline){
     status('Connexion au serveur…');
-    api('/api/screens-list.php').then(function(d){
-      var slug = A.slug(), screens = d.screens || [], found = null;
-      screens.forEach(function(s){ if (s.slug === slug) found = s; });
+    var slug = A.slug();
+    api('/api/screens-list.php?check=' + encodeURIComponent(slug)).then(function(d){
+      var found = d.screen || null, screens = d.screens || (found ? [found] : []);
+      if (!found && d.screens) d.screens.forEach(function(s){ if (s.slug === slug) found = s; });   // ancien serveur
       if (slug && found) {
         A.setScreen(found.slug, found.label);
         if (fromOffline) { status('Reconnexion ✓'); A.start(); return; }
         ready(5);
-      } else if (slug && !screens.length) {
+      } else if (slug && d.screens && !d.screens.length) {
         ready(5);                      // liste vide (serveur en maintenance ?) : on tente quand même
       } else {
         show('setup');
@@ -370,10 +405,11 @@ h1{font-weight:700;font-size:calc(6.5*var(--u));line-height:1;letter-spacing:-.0
   }
 
   // ── Écran existant ──
+  var pinCode = '';
   function list(){
     show('list');
     $('grid').innerHTML = '<div class="sub">Chargement…</div>';
-    api('/api/screens-list.php').then(function(d){
+    api('/api/screens-list.php' + (pinCode ? '?pin=' + encodeURIComponent(pinCode) : '')).then(function(d){
       var html = '';
       (d.screens || []).forEach(function(s){
         html += '<button class="btn sc" data-slug="' + esc(s.slug) + '" data-label="' + esc(s.label) + '"><span class="tt">' + esc(s.label) + '</span><span class="dd">' + esc(s.slug) + '</span></button>';
@@ -383,8 +419,38 @@ h1{font-weight:700;font-size:calc(6.5*var(--u));line-height:1;letter-spacing:-.0
         b.addEventListener('click', function(){ A.setScreen(b.getAttribute('data-slug'), b.getAttribute('data-label')); done(b.getAttribute('data-label')); });
       });
       var f = $('grid').querySelector('.btn'); if (f) f.focus();
-    }).catch(function(){ $('grid').innerHTML = '<div class="sub">Liste indisponible (' + esc(lastErr) + ').</div>'; });
+    }).catch(function(err){
+      if (err && (err.error === 'PIN_REQUIRED' || err.error === 'PIN_INVALID')) { askPin(err.error === 'PIN_INVALID'); return; }
+      if (err && err.error === 'PIN_LOCKED') { $('grid').innerHTML = '<div class="sub">Trop d\'essais — réessaie dans 10 minutes.</div>'; return; }
+      $('grid').innerHTML = '<div class="sub">Liste indisponible (' + esc(lastErr) + ').</div>';
+    });
   }
+
+  // ── Code d'installation (Réglages du signage) : protège « Écran existant » ──
+  function askPin(wrong){
+    pinCode = '';
+    show('pin');
+    $('pinNote').textContent = wrong ? 'Code incorrect — réessaie.' : '';
+    drawPin();
+  }
+  function drawPin(){
+    var h = '';
+    for (var i = 0; i < Math.max(4, pinCode.length); i++) h += '<i class="' + (i < pinCode.length ? 'on' : '') + '"></i>';
+    $('pinDots').innerHTML = h;
+  }
+  function pinKey(k){
+    if (cur !== 'pin') return;
+    if (k === 'del') pinCode = pinCode.slice(0, -1);
+    else if (k === 'ok') { if (pinCode.length >= 4) list(); return; }
+    else if (pinCode.length < 8) pinCode += k;
+    drawPin();
+  }
+  document.addEventListener('click', function(e){ var b = e.target.closest('[data-pin]'); if (b) pinKey(b.getAttribute('data-pin')); });
+  document.addEventListener('keydown', function(e){
+    if (cur !== 'pin') return;
+    if (/^[0-9]$/.test(e.key)) { pinKey(e.key); e.preventDefault(); }
+    else if (e.key === 'Backspace') { pinKey('del'); e.preventDefault(); }
+  });
 
   function done(name){
     show('done'); $('doneName').textContent = name;
@@ -407,7 +473,8 @@ h1{font-weight:700;font-size:calc(6.5*var(--u));line-height:1;letter-spacing:-.0
     show('setup');
   } else if (h === '#paired') {
     // Associé via le code : on récupère le nom de l'écran puis on lance
-    api('/api/screens-list.php').then(function(d){
+    api('/api/screens-list.php?check=' + encodeURIComponent(A.slug())).then(function(d){
+      if (d.screen) A.setScreen(d.screen.slug, d.screen.label);
       (d.screens || []).forEach(function(s){ if (s.slug === A.slug()) A.setScreen(s.slug, s.label); });
       done(A.label() || A.slug());
     }).catch(function(){ done(A.slug()); });

@@ -59,6 +59,8 @@ public class MainActivity extends Activity {
     static final String BOOT = "file:///android_asset/boot.html";
 
     private WebView web;
+    private android.widget.FrameLayout root;
+    private NativeVideo video;
     private SharedPreferences prefs;
     private final Handler ui = new Handler(Looper.getMainLooper());
     private boolean inPlayer = false;
@@ -80,6 +82,11 @@ public class MainActivity extends Activity {
                 | WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
                 | WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD);
         if (Build.VERSION.SDK_INT >= 27) { setShowWhenLocked(true); setTurnScreenOn(true); }
+        // Racine : lecteur vidéo natif en dessous, page web (transparente) au-dessus
+        root = new android.widget.FrameLayout(this);
+        root.setBackgroundColor(Color.parseColor("#0d0b0b"));
+        setContentView(root);
+        video = new NativeVideo(this, root, code -> ui.post(() -> { if (web != null) web.evaluateJavascript(code, null); }));
         buildWebView();
         hideSystemUi();
         ui.postDelayed(updateTick, 3 * 60 * 1000L);   // 1re vérification 3 min après le lancement
@@ -96,8 +103,11 @@ public class MainActivity extends Activity {
     @SuppressLint({"SetJavaScriptEnabled", "AddJavascriptInterface"})
     private void buildWebView() {
         web = new WebView(this);
-        web.setBackgroundColor(Color.parseColor("#0d0b0b"));
-        web.setLayerType(View.LAYER_TYPE_HARDWARE, null);
+        // Fond transparent : laisse voir le lecteur vidéo natif placé dessous
+        // (la page peint elle-même son fond sombre partout ailleurs).
+        // Pas de LAYER_TYPE_HARDWARE : ce calque forcé faisait saccader / noircir
+        // les vidéos sur les box d'entrée de gamme.
+        web.setBackgroundColor(Color.TRANSPARENT);
         web.setFocusable(true);
         web.setFocusableInTouchMode(true);
         web.setKeepScreenOn(true);
@@ -131,7 +141,7 @@ public class MainActivity extends Activity {
         web.setWebViewClient(new WebViewClient() {
             @Override public boolean shouldOverrideUrlLoading(WebView v, WebResourceRequest r) { return catchPaired(r.getUrl().toString()); }
             @Override public boolean shouldOverrideUrlLoading(WebView v, String url) { return catchPaired(url); }
-            @Override public void onPageStarted(WebView v, String url, Bitmap fav) { catchPaired(url); }
+            @Override public void onPageStarted(WebView v, String url, Bitmap fav) { if (video != null) video.stop(false); catchPaired(url); }
 
             @Override
             public void onReceivedError(WebView v, WebResourceRequest req, WebResourceError err) {
@@ -161,7 +171,8 @@ public class MainActivity extends Activity {
                 return true;
             }
         });
-        setContentView(web);
+        root.addView(web, new android.widget.FrameLayout.LayoutParams(
+                android.widget.FrameLayout.LayoutParams.MATCH_PARENT, android.widget.FrameLayout.LayoutParams.MATCH_PARENT));
         web.requestFocus();
     }
 
@@ -182,6 +193,7 @@ public class MainActivity extends Activity {
     };
 
     private void rebuild() {
+        if (video != null) video.stop(false);
         try { if (web != null) { ((android.view.ViewGroup) web.getParent()).removeView(web); web.destroy(); } } catch (Throwable ignored) {}
         buildWebView();
         hideSystemUi();
@@ -245,7 +257,7 @@ public class MainActivity extends Activity {
     }
 
     @Override protected void onResume() { super.onResume(); if (web != null) web.onResume(); hideSystemUi(); }
-    @Override protected void onPause()  { if (web != null) web.onPause(); super.onPause(); }
+    @Override protected void onPause()  { if (video != null) video.stop(false); if (web != null) web.onPause(); super.onPause(); }
 
     // ── Touches télécommande ──────────────────────────────────────────
     @Override
@@ -376,6 +388,15 @@ public class MainActivity extends Activity {
         }
         @JavascriptInterface public void openSettings() { ui.post(() -> tryStart(new Intent(Settings.ACTION_SETTINGS))); }
 
+        // ── Lecture vidéo native (signage.js) ──
+        @JavascriptInterface public boolean nativeVideo() { return true; }
+        @JavascriptInterface public void videoPlay(String id, String url, boolean loop, boolean muted, int x, int y, int w, int h, String fit) {
+            ui.post(() -> { if (video != null) video.play(id, url, loop, muted, x, y, w, h, fit); });
+        }
+        @JavascriptInterface public void videoStop() { ui.post(() -> { if (video != null) video.stop(false); }); }
+        /** Copie locale anticipée des vidéos de la playlist (démarrage instantané). */
+        @JavascriptInterface public void videoPrefetch(String url) { VideoCache.prefetch(MainActivity.this, url); }
+
         // ── Commandes à distance (admin → Monitoring) ──
         /** Redémarre complètement l'appli (nouveau processus). */
         @JavascriptInterface public void appRestart() {
@@ -450,6 +471,7 @@ public class MainActivity extends Activity {
 
     @Override protected void onDestroy() {
         ui.removeCallbacks(updateTick);
+        if (video != null) video.stop(false);
         if (web != null) web.destroy();
         super.onDestroy();
     }
