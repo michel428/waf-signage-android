@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Adaptateurs USB-DMX « Open DMX » à puce FTDI (FT232R / FT232RL, ex. Enttec Open DMX USB) -->
+<resources>
+    <usb-device vendor-id="1027" product-id="24577" />
+    <usb-device vendor-id="1027" />
+</resources>

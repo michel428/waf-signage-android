@@ -61,6 +61,7 @@ public class MainActivity extends Activity {
     private WebView web;
     private android.widget.FrameLayout root;
     private NativeVideo video;
+    private DmxOutput dmx;
     private SharedPreferences prefs;
     private final Handler ui = new Handler(Looper.getMainLooper());
     private boolean inPlayer = false;
@@ -88,6 +89,9 @@ public class MainActivity extends Activity {
         setContentView(root);
         video = new NativeVideo(this, root, code -> ui.post(() -> { if (web != null) web.evaluateJavascript(code, null); }));
         buildWebView();
+        // Lumières : adaptateur USB-DMX (FT232R) branché sur la box → lyres pilotées par les playlists
+        dmx = new DmxOutput(this);
+        dmx.connect();
         hideSystemUi();
         ui.postDelayed(updateTick, 3 * 60 * 1000L);   // 1re vérification 3 min après le lancement
         loadBoot(getIntent() != null && getIntent().getBooleanExtra("fromBoot", false) ? "#boot" : "");
@@ -96,6 +100,8 @@ public class MainActivity extends Activity {
     @Override
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
+        // Adaptateur DMX branché pendant que l'appli tourne
+        if (dmx != null && intent != null && android.hardware.usb.UsbManager.ACTION_USB_DEVICE_ATTACHED.equals(intent.getAction())) dmx.connect();
         // Touche HOME quand l'appli est le lanceur : on reste sur l'écran en cours
         hideSystemUi();
     }
@@ -397,6 +403,11 @@ public class MainActivity extends Activity {
         /** Copie locale anticipée des vidéos de la playlist (démarrage instantané). */
         @JavascriptInterface public void videoPrefetch(String url) { VideoCache.prefetch(MainActivity.this, url); }
 
+        // ── Lumières DMX (signage.js) ──
+        /** Scène JSON {"canal":valeur,…}, fondu en millisecondes. */
+        @JavascriptInterface public void dmxSet(String json, int fadeMs) { if (dmx != null) dmx.set(json, fadeMs); }
+        @JavascriptInterface public String dmxStatus() { return dmx != null ? dmx.status() : "indisponible"; }
+
         // ── Commandes à distance (admin → Monitoring) ──
         /** Redémarre complètement l'appli (nouveau processus). */
         @JavascriptInterface public void appRestart() {
@@ -472,6 +483,7 @@ public class MainActivity extends Activity {
     @Override protected void onDestroy() {
         ui.removeCallbacks(updateTick);
         if (video != null) video.stop(false);
+        if (dmx != null) dmx.destroy();
         if (web != null) web.destroy();
         super.onDestroy();
     }
