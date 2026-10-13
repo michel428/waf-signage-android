@@ -408,6 +408,17 @@ public class MainActivity extends Activity {
         /** Scène JSON {"canal":valeur,…}, fondu en millisecondes. */
         @JavascriptInterface public void dmxSet(String json, int fadeMs) { if (dmx != null) dmx.set(json, fadeMs); }
         @JavascriptInterface public String dmxStatus() { return dmx != null ? dmx.status() : "indisponible"; }
+        // Ruban LED Bluetooth (menu de la box)
+        @JavascriptInterface public String bleStatus() { return dmx != null ? dmx.stripStatus() : "indisponible"; }
+        @JavascriptInterface public boolean bleConnected() { return dmx != null && dmx.stripConnected(); }
+        @JavascriptInterface public void bleConnect() { if (dmx != null) dmx.stripConnect(); }
+        @JavascriptInterface public void bleTest() { if (dmx != null) dmx.stripTest(); }
+        @JavascriptInterface public void openBluetoothSettings() {
+            ui.post(() -> { if (!tryStart(new Intent(Settings.ACTION_BLUETOOTH_SETTINGS))) tryStart(new Intent(Settings.ACTION_SETTINGS)); });
+        }
+        @JavascriptInterface public void openLocationSettings() {
+            ui.post(() -> { if (!tryStart(new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS))) tryStart(new Intent(Settings.ACTION_SETTINGS)); });
+        }
 
         // ── Commandes à distance (admin → Monitoring) ──
         /** Redémarre complètement l'appli (nouveau processus). */
@@ -479,6 +490,11 @@ public class MainActivity extends Activity {
     private boolean tryStart(Intent i) {
         try { i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK); startActivity(i); return true; }
         catch (ActivityNotFoundException | SecurityException e) { return false; }
+    }
+
+    @Override public void onRequestPermissionsResult(int code, String[] perms, int[] res) {
+        super.onRequestPermissionsResult(code, perms, res);
+        if (code == 77 && dmx != null) dmx.stripConnect();
     }
 
     @Override protected void onDestroy() {

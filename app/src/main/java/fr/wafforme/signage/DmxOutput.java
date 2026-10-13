@@ -236,6 +236,12 @@ class DmxOutput {
         start();
     }
 
+    // ── Ruban LED depuis le menu de la box ──
+    String stripStatus() { return strip.used() ? strip.status() : "non utilisé (à activer dans l'admin, ou « Ruban LED » ici)"; }
+    boolean stripConnected() { return strip.connected(); }
+    void stripConnect() { strip.manualConnect(); start(); }
+    void stripTest() { strip.test(); start(); }
+
     private synchronized void closeUsb() {
         try { if (conn != null) conn.close(); } catch (Throwable ignored) {}
         conn = null; out = null;
