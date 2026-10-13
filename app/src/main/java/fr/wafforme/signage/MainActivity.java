@@ -90,7 +90,8 @@ public class MainActivity extends Activity {
         video = new NativeVideo(this, root, code -> ui.post(() -> { if (web != null) web.evaluateJavascript(code, null); }));
         buildWebView();
         // Lumières : adaptateur USB-DMX (FT232R) branché sur la box → lyres pilotées par les playlists
-        dmx = new DmxOutput(this);
+        // + ruban LED Bluetooth (Lotus Lantern X) : autorisation Bluetooth demandée à l'écran si besoin
+        dmx = new DmxOutput(this, perms -> ui.post(() -> { if (Build.VERSION.SDK_INT >= 23) try { requestPermissions(perms, 77); } catch (Throwable ignored) {} }));
         dmx.connect();
         hideSystemUi();
         ui.postDelayed(updateTick, 3 * 60 * 1000L);   // 1re vérification 3 min après le lancement
