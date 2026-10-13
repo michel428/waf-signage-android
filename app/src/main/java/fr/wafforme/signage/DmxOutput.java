@@ -53,6 +53,7 @@ class DmxOutput {
     /** Une étape d'ambiance : lyres + ruban, durée et fondu d'entrée. */
     private static final class Step {
         DmxProgram p; DmxProgram s; boolean sOff; long dur, fade;
+        int[][] map;   // « suit les lyres » : canaux r, g, b, w, intensité de chaque lyre (couleur lue sur la sortie DMX réelle)
     }
 
     private final byte[] frame = new byte[513];              // [0] = code de départ
@@ -143,11 +144,17 @@ class DmxOutput {
 
     private void tick() {
         Step st;
-        synchronized (lock) { st = computeFrame(); }
-        // Ruban LED (canaux virtuels 1-3 = rouge, vert, bleu ; 4 = intensité)
+        float[] follow = null;
+        synchronized (lock) { st = computeFrame(); if (st.map != null && !st.sOff) follow = lyresColor(st.map); }
+        // Ruban LED
         if (strip.used()) {
-            if (st.sOff || st.s == null) strip.push(0, 0, 0, false);
-            else {
+            if (st.sOff || (st.s == null && follow == null)) strip.push(0, 0, 0, false);
+            else if (follow != null) {
+                // Suit les lyres : même couleur que ce qu'elles affichent vraiment, fondus et séquences compris
+                for (int i = 0; i < 3; i++) sCur[i] += (follow[i] - sCur[i]) * 0.5f;
+                strip.push(Math.round(sCur[0]), Math.round(sCur[1]), Math.round(sCur[2]), true);
+            } else {
+                // Effet propre au ruban (canaux virtuels 1-3 = rouge, vert, bleu ; 4 = intensité)
                 float[] v = st.s.compute(System.currentTimeMillis());
                 float k = v[4] / 255f;
                 for (int i = 0; i < 3; i++) sCur[i] += (v[i + 1] * k - sCur[i]) * 0.25f;   // lissage : pas d'à-coups
@@ -162,6 +169,30 @@ class DmxOutput {
         try { Thread.sleep(1); } catch (InterruptedException ignored) {}
         ctl(c, REQ_DATA, DATA_8N2);
         c.bulkTransfer(e, frame, frame.length, 1000);
+    }
+
+    /**
+     * Couleur moyenne des lyres allumées, lue sur la trame DMX envoyée (blanc ajouté au RVB,
+     * intensité appliquée), puis ravivée : la composante la plus forte prend la luminosité
+     * de la lyre la plus lumineuse (sinon un mélange de couleurs donne un gris terne).
+     */
+    private float[] lyresColor(int[][] map) {
+        float r = 0, g = 0, b = 0, peak = 0; int n = 0;
+        for (int[] f : map) {
+            float w = f[3] > 0 ? cur[f[3]] : 0;
+            float k = f[4] > 0 ? cur[f[4]] / 255f : 1f;
+            float fr = Math.min(255, ((f[0] > 0 ? cur[f[0]] : 0) + w)) * k;
+            float fg = Math.min(255, ((f[1] > 0 ? cur[f[1]] : 0) + w)) * k;
+            float fb = Math.min(255, ((f[2] > 0 ? cur[f[2]] : 0) + w)) * k;
+            float mx = Math.max(fr, Math.max(fg, fb));
+            if (mx < 3) continue;                       // lyre éteinte : ne compte pas
+            r += fr; g += fg; b += fb; n++; peak = Math.max(peak, mx);
+        }
+        if (n == 0) return new float[]{0, 0, 0};
+        r /= n; g /= n; b /= n;
+        float mx = Math.max(r, Math.max(g, b));
+        float k = mx > 0 ? peak / mx : 0;
+        return new float[]{r * k, g * k, b * k};
     }
 
     /** Valeurs du moment : étape en cours (séquence) + fondu depuis l'ambiance précédente. */
@@ -193,6 +224,15 @@ class DmxOutput {
         s.p = new DmxProgram(program);
         s.sOff = strip != null && strip.optBoolean("off", false);
         s.s = strip != null && !s.sOff ? new DmxProgram(strip) : null;
+        JSONArray m = strip != null && strip.optBoolean("follow", false) ? strip.optJSONArray("map") : null;
+        if (m != null && m.length() > 0) {
+            s.map = new int[m.length()][];
+            for (int i = 0; i < m.length(); i++) {
+                JSONObject x = m.optJSONObject(i);
+                if (x == null) x = new JSONObject();
+                s.map[i] = new int[]{x.optInt("r"), x.optInt("g"), x.optInt("b"), x.optInt("w"), x.optInt("dim")};
+            }
+        }
         s.dur = Math.max(1000, dur);
         s.fade = Math.max(0, Math.min(30000, fade));
         return s;
