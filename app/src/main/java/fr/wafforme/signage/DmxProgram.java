@@ -35,6 +35,7 @@ final class DmxProgram {
     private long step = 10000;
     private boolean spread = true;
     private final float[] out = new float[513];
+    final byte[] curve = new byte[513];         // protections à la sortie (voir DmxOutput.safe)
 
     private static final int[][] FIRE = {{255, 30, 0, 0}, {255, 80, 0, 0}, {255, 130, 0, 0}, {255, 60, 0, 0}};
 
@@ -46,6 +47,14 @@ final class DmxProgram {
             while (it.hasNext()) {
                 String k = it.next();
                 try { int ch = Integer.parseInt(k); if (ch >= 1 && ch <= 512) base[ch] = clamp(b.optInt(k, 0)); } catch (NumberFormatException ignored) {}
+            }
+        }
+        JSONObject cv = o.optJSONObject("curves");
+        if (cv != null) {
+            Iterator<String> it = cv.keys();
+            while (it.hasNext()) {
+                String k = it.next();
+                try { int ch = Integer.parseInt(k); if (ch >= 1 && ch <= 512) curve[ch] = (byte) cv.optInt(k, 0); } catch (NumberFormatException ignored) {}
             }
         }
         JSONArray f = o.optJSONArray("fixtures");
@@ -238,10 +247,12 @@ final class DmxProgram {
                 float d = (float) (127.5 + 127.5 * Math.sin(ph));
                 return new float[]{c[0], c[1], c[2], c[3], d};
             }
-            case "random": {
-                long k = now / Math.max(300, step / 4) + (spread ? i * 7919L : 0);
-                double h = ((k * 2654435761L) & 0xffff) / 65536.0;
-                return hsv(h);
+            case "random": {                          // couleurs au hasard, en fondu (jamais de saut brutal)
+                long per = Math.max(1500, step / 2);
+                long k = now / per + (spread ? i * 7919L : 0);
+                double f = smooth(Math.min(1, (now % per) / 800.0));
+                float[] a = hsv(((k * 2654435761L) & 0xffff) / 65536.0), b = hsv((((k + 1) * 2654435761L) & 0xffff) / 65536.0);
+                return new float[]{a[0] + (b[0] - a[0]) * (float) f, a[1] + (b[1] - a[1]) * (float) f, a[2] + (b[2] - a[2]) * (float) f, 0};
             }
             case "pulse": {
                 if (pl == 0) return null;
@@ -249,11 +260,11 @@ final class DmxProgram {
                 float d = (float) (127.5 + 127.5 * Math.sin(2 * Math.PI * (now % step) / step - (spread ? i * 0.6 : 0)));
                 return new float[]{c[0], c[1], c[2], c[3], d};
             }
-            case "chase": {
+            case "chase": {                           // les couleurs tournent, avec un court fondu (pas de flash)
                 if (pl == 0) return null;
-                int k = (int) ((now / step + (spread ? i : 0)) % pl);
-                int[] c = palette[k];
-                return new float[]{c[0], c[1], c[2], c[3]};
+                long k = now / step + (spread ? i : 0);
+                double f = smooth(Math.min(1, (now % step) / 400.0));
+                return lerp(palette[(int) ((k - 1 + pl) % pl)], palette[(int) (k % pl)], f);
             }
             case "fade": {                            // fondu enchaîné d'une couleur à l'autre
                 if (pl == 0) return null;

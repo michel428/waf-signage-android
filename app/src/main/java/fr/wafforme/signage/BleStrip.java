@@ -86,7 +86,12 @@ class BleStrip {
     void test() { manualConnect(); testStart = System.currentTimeMillis(); testUntil = testStart + 6000; }
 
     /** Réglages venant du serveur (null = ruban non utilisé). */
-    void configure(boolean use, String name, int brightPct) {
+    private volatile String order = "rgb";      // câblage du ruban (réglé dans l'admin)
+
+    void configure(boolean use, String name, int brightPct, String ord) {
+        if (ord != null && ord.matches("[rgb]{3}") && ord.indexOf('r') >= 0 && ord.indexOf('g') >= 0 && ord.indexOf('b') >= 0) {
+            if (!ord.equals(order)) { order = ord; sr = sg = sb = -1; }
+        }
         filter = name == null ? "" : name.trim();
         bright = Math.max(5, Math.min(100, brightPct));
         if (use == wanted) return;
@@ -130,7 +135,10 @@ class BleStrip {
         r = r * k / 100; g = g * k / 100; b = b * k / 100;
         boolean changed = Math.abs(r - sr) + Math.abs(g - sg) + Math.abs(b - sb) > 2;
         if (!changed && now - lastSent < 10000) return;         // rappel toutes les 10 s (au cas où)
-        write(new byte[]{0x7e, 0x00, 0x05, 0x03, (byte) r, (byte) g, (byte) b, 0x00, (byte) 0xef});
+        // Ordre des couleurs du ruban : « grb » = le ruban attend vert, rouge, bleu…
+        int[] v = new int[3];
+        for (int j = 0; j < 3; j++) { char ch = order.charAt(j); v[j] = ch == 'r' ? r : (ch == 'g' ? g : b); }
+        write(new byte[]{0x7e, 0x00, 0x05, 0x03, (byte) v[0], (byte) v[1], (byte) v[2], 0x00, (byte) 0xef});
         sr = r; sg = g; sb = b; lastSent = now;
     }
 

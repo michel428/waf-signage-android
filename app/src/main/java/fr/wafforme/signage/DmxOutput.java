@@ -214,9 +214,25 @@ class DmxOutput {
         frame[0] = 0;
         for (int i = 1; i <= 512; i++) {
             cur[i] = from[i] + (target[i] - from[i]) * p;
-            frame[i] = (byte) Math.round(Math.max(0, Math.min(255, cur[i])));
+            frame[i] = (byte) safe(st.p.curve[i], Math.round(Math.max(0, Math.min(255, cur[i]))));
         }
         return st;
+    }
+
+    /**
+     * Protection anti-stroboscope, appliquée APRÈS les fondus (sinon un fondu de 134 à 255
+     * traverserait la zone strobe) :
+     *  1 = obturateur (UKing) : 0 → noir, 1-249 → 8-134 (gradateur), ≥ 250 → 255 (ouvert) ;
+     *  2 = couleur macro plafonnée à 231 (au-delà : sauts de couleurs) ;
+     *  3 = toujours 0 (mode auto / son, reset).
+     */
+    static int safe(int curve, int v) {
+        switch (curve) {
+            case 1: return v <= 0 ? 0 : (v >= 250 ? 255 : 8 + Math.round((v - 1) * 126f / 248f));
+            case 2: return Math.min(v, 231);
+            case 3: return 0;
+            default: return v;
+        }
     }
 
     private static Step step(JSONObject program, JSONObject strip, long dur, long fade) {
@@ -271,7 +287,7 @@ class DmxOutput {
             fadeMs = Math.max(0, Math.min(30000, fade));
             fadeStart = seqStart;
         }
-        strip.configure(stripCfg != null, stripCfg != null ? stripCfg.optString("name", "") : "", stripCfg != null ? stripCfg.optInt("bright", 100) : 100);
+        strip.configure(stripCfg != null, stripCfg != null ? stripCfg.optString("name", "") : "", stripCfg != null ? stripCfg.optInt("bright", 100) : 100, stripCfg != null ? stripCfg.optString("order", "rgb") : "rgb");
         if (conn == null) connect();
         start();
     }
