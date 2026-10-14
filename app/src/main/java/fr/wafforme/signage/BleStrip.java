@@ -88,7 +88,10 @@ class BleStrip {
     /** Réglages venant du serveur (null = ruban non utilisé). */
     private volatile String order = "rgb";      // câblage du ruban (réglé dans l'admin)
 
-    void configure(boolean use, String name, int brightPct, String ord) {
+    private volatile boolean noBlue = false;    // bleu du ruban en panne : jamais de bleu, remplacé par du rose
+
+    void configure(boolean use, String name, int brightPct, String ord, boolean nb) {
+        if (nb != noBlue) { noBlue = nb; sr = sg = sb = -1; }
         if (ord != null && ord.matches("[rgb]{3}") && ord.indexOf('r') >= 0 && ord.indexOf('g') >= 0 && ord.indexOf('b') >= 0) {
             if (!ord.equals(order)) { order = ord; sr = sg = sb = -1; }
         }
@@ -133,6 +136,8 @@ class BleStrip {
         if (!on) return;
         int k = bright;
         r = r * k / 100; g = g * k / 100; b = b * k / 100;
+        // Bleu en panne : le bleu passe en rose (sinon le ruban s'éteint sur les couleurs bleues)
+        if (noBlue) { r = Math.max(r, Math.round(b * 0.9f)); g = Math.max(g, Math.round(b * 0.3f)); b = 0; }
         boolean changed = Math.abs(r - sr) + Math.abs(g - sg) + Math.abs(b - sb) > 2;
         if (!changed && now - lastSent < 10000) return;         // rappel toutes les 10 s (au cas où)
         // Ordre des couleurs du ruban : « grb » = le ruban attend vert, rouge, bleu…

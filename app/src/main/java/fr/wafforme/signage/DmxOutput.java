@@ -287,7 +287,7 @@ class DmxOutput {
             fadeMs = Math.max(0, Math.min(30000, fade));
             fadeStart = seqStart;
         }
-        strip.configure(stripCfg != null, stripCfg != null ? stripCfg.optString("name", "") : "", stripCfg != null ? stripCfg.optInt("bright", 100) : 100, stripCfg != null ? stripCfg.optString("order", "rgb") : "rgb");
+        strip.configure(stripCfg != null, stripCfg != null ? stripCfg.optString("name", "") : "", stripCfg != null ? stripCfg.optInt("bright", 100) : 100, stripCfg != null ? stripCfg.optString("order", "rgb") : "rgb", stripCfg != null && stripCfg.optInt("noblue", 0) == 1);
         if (conn == null) connect();
         start();
     }
