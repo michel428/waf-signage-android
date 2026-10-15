@@ -213,8 +213,12 @@ class DmxOutput {
         float p = fadeMs <= 0 ? 1f : Math.min(1f, (now - fadeStart) / (float) fadeMs);
         frame[0] = 0;
         for (int i = 1; i <= 512; i++) {
-            cur[i] = from[i] + (target[i] - from[i]) * p;
+            int cv = st.p.curve[i];
+            cur[i] = (cv == 5 || cv == 6) ? target[i] : from[i] + (target[i] - from[i]) * p;   // canaux « à crans » : pas de fondu
             frame[i] = (byte) safe(st.p.curve[i], Math.round(Math.max(0, Math.min(255, cur[i]))));
+        }
+        for (int i = 3; i <= 512; i++) {                 // vitesse Nicols : dépend du mode réellement envoyé
+            if (st.p.curve[i] == 4) { int m = frame[i - 2] & 0xff; if (m < 120 || m > 239) frame[i] = 0; }
         }
         return st;
     }
@@ -224,13 +228,20 @@ class DmxOutput {
      * traverserait la zone strobe) :
      *  1 = obturateur (UKing) : 0 → noir, 1-249 → 8-134 (gradateur), ≥ 250 → 255 (ouvert) ;
      *  2 = couleur macro plafonnée à 231 (au-delà : sauts de couleurs) ;
-     *  3 = toujours 0 (mode auto / son, reset).
+     *  3 = toujours 0 (mode auto / son, reset) ;
+     *  4 = vitesse Nicols : gardée seulement si le canal « Mode » (2 canaux avant) est en chenillard (120-239),
+     *      sinon 0 (en mode motif, ce canal est un stroboscope) ;
+     *  5 = mode Nicols plafonné à 239 (sans fondu) ;
+     *  6 = choix de motif / chenillard : sans fondu (sinon on verrait défiler tous les motifs) ;
+     *  7 = mode Nicols 10 canaux : toujours 128 (contrôle manuel ; ni noir forcé, ni mode micro).
      */
     static int safe(int curve, int v) {
         switch (curve) {
             case 1: return v <= 0 ? 0 : (v >= 250 ? 255 : 8 + Math.round((v - 1) * 126f / 248f));
             case 2: return Math.min(v, 231);
             case 3: return 0;
+            case 5: return Math.min(v, 239);          // Nicols : jamais le mode autonome
+            case 7: return 128;                       // Nicols 10 canaux : toujours en contrôle manuel
             default: return v;
         }
     }
