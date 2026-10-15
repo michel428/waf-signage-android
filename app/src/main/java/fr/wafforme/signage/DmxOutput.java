@@ -218,7 +218,11 @@ class DmxOutput {
             frame[i] = (byte) safe(st.p.curve[i], Math.round(Math.max(0, Math.min(255, cur[i]))));
         }
         for (int i = 3; i <= 512; i++) {                 // vitesse Nicols : dépend du mode réellement envoyé
-            if (st.p.curve[i] == 4) { int m = frame[i - 2] & 0xff; if (m < 120 || m > 239) frame[i] = 0; }
+            if (st.p.curve[i] == 4) {
+                int m = 0;                                // canal « Mode » le plus proche avant (2 canaux avant en 4 ch, 8 en 10 ch)
+                for (int j = i - 1; j >= Math.max(1, i - 12); j--) if (st.p.curve[j] == 5) { m = frame[j] & 0xff; break; }
+                if (m < 120 || m > 239) frame[i] = 0;
+            }
         }
         return st;
     }
@@ -229,7 +233,7 @@ class DmxOutput {
      *  1 = obturateur (UKing) : 0 → noir, 1-249 → 8-134 (gradateur), ≥ 250 → 255 (ouvert) ;
      *  2 = couleur macro plafonnée à 231 (au-delà : sauts de couleurs) ;
      *  3 = toujours 0 (mode auto / son, reset) ;
-     *  4 = vitesse Nicols : gardée seulement si le canal « Mode » (2 canaux avant) est en chenillard (120-239),
+     *  4 = vitesse Nicols : gardée seulement si le canal « Mode » (le plus proche avant) est en chenillard (120-239),
      *      sinon 0 (en mode motif, ce canal est un stroboscope) ;
      *  5 = mode Nicols plafonné à 239 (sans fondu) ;
      *  6 = choix de motif / chenillard : sans fondu (sinon on verrait défiler tous les motifs) ;
