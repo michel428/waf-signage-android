@@ -211,6 +211,7 @@ h1{font-weight:700;font-size:calc(6.5*var(--u));line-height:1;letter-spacing:-.0
     <button class="btn chk" id="chkAuto2" data-go="autostart"><span class="dot"></span><span>Démarrage automatique</span></button>
     <button class="btn chk" id="chkHome2" data-go="launcher"><span class="dot"></span><span>Lanceur par défaut</span></button>
     <button class="btn chk" id="chkUpd2" data-go="updperm"><span class="dot"></span><span>Mises à jour auto</span></button>
+    <button class="btn chk" id="chkFront2" data-go="front" style="display:none"><span class="dot"></span><span>Revenir seul à l'affichage</span></button>
     <button class="btn chk" data-go="update" id="btnUpd"><span>Rechercher une mise à jour</span></button>
     <button class="btn chk" data-go="settings" id="btnSettings"><span>Paramètres Android</span></button>
   </div>
@@ -222,6 +223,7 @@ h1{font-weight:700;font-size:calc(6.5*var(--u));line-height:1;letter-spacing:-.0
   </div>
   <div class="note" id="bleInfo" style="color:var(--mute)"></div>
   <div class="note" id="updInfo" style="color:var(--mute)"></div>
+  <div class="note" id="sysInfo" style="color:var(--mute)"></div>
 </section>
 
 <div class="brand" id="brand" style="display:none"><img src="logo.png" alt="Waf"><small>SIGNAGE</small></div>
@@ -297,6 +299,7 @@ h1{font-weight:700;font-size:calc(6.5*var(--u));line-height:1;letter-spacing:-.0
     else if (go === 'settings') A.openSettings();
     else if (go === 'autostart') A.openAutostart();
     else if (go === 'launcher') A.openLauncherSettings();
+    else if (go === 'front') { if (A.setKeepFront) { A.setKeepFront(!A.keepFront()); refreshChecks(); } }
     else if (go === 'updperm') { if (A.openUpdatesPermission) A.openUpdatesPermission(); }
     else if (go === 'update') { if (A.checkUpdate) { $('updInfo').textContent = 'Recherche d\'une mise à jour…'; A.checkUpdate(); } }
     else if (go === 'ble') { if (A.bleConnect) { A.bleConnect(); $('bleInfo').textContent = 'Ruban LED : recherche lancée…'; } }
@@ -314,6 +317,12 @@ h1{font-weight:700;font-size:calc(6.5*var(--u));line-height:1;letter-spacing:-.0
     if (!A.checkUpdate && $('btnUpd')) $('btnUpd').style.display = 'none';
     showUpdateInfo();
     ['chkAuto','chkAuto2'].forEach(function(id){ var el = $(id); if (el) el.classList.toggle('ok', a); });
+    if (A.androidInfo && $('sysInfo')) { try { $('sysInfo').textContent = A.androidInfo(); } catch(e){} }
+    if (A.keepFront && $('chkFront2')) {
+      var kf = !!A.keepFront(), el = $('chkFront2');
+      el.style.display = ''; el.classList.toggle('ok', kf);
+      el.querySelectorAll('span')[1].textContent = kf ? 'Revient seul à l\'affichage (' + A.keepFrontMinutes() + ' min)' : 'Revenir seul à l\'affichage : non';
+    }
     ['chkHome','chkHome2'].forEach(function(id){ var el = $(id); if (el) el.classList.toggle('ok', h); });
     bleRefresh();
   }

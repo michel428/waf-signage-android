@@ -16,6 +16,7 @@ public class BootReceiver extends BroadcastReceiver {
     @Override
     public void onReceive(Context context, Intent intent) {
         final Context app = context.getApplicationContext();
+        KeepAliveService.start(app);
         final PendingResult pending = goAsync();
         // Petit délai : certains boîtiers ne sont pas encore prêts à l'instant du boot
         new Handler(Looper.getMainLooper()).postDelayed(() -> {

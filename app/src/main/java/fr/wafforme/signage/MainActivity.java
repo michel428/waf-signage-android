@@ -95,6 +95,8 @@ public class MainActivity extends Activity {
         dmx.connect();
         hideSystemUi();
         ui.postDelayed(updateTick, 3 * 60 * 1000L);   // 1re vérification 3 min après le lancement
+        // TV (Mi TV…) : relance de l'affichage au rallumage / après une autre appli
+        KeepAliveService.start(this);
         loadBoot(getIntent() != null && getIntent().getBooleanExtra("fromBoot", false) ? "#boot" : "");
     }
 
@@ -263,8 +265,8 @@ public class MainActivity extends Activity {
         if (hasFocus) hideSystemUi();
     }
 
-    @Override protected void onResume() { super.onResume(); if (web != null) web.onResume(); hideSystemUi(); }
-    @Override protected void onPause()  { if (video != null) video.stop(false); if (web != null) web.onPause(); super.onPause(); }
+    @Override protected void onResume() { super.onResume(); KeepAliveService.visible = true; KeepAliveService.hiddenSince = 0; if (web != null) web.onResume(); hideSystemUi(); }
+    @Override protected void onPause()  { KeepAliveService.visible = false; KeepAliveService.hiddenSince = System.currentTimeMillis(); if (video != null) video.stop(false); if (web != null) web.onPause(); super.onPause(); }
 
     // ── Touches télécommande ──────────────────────────────────────────
     @Override
@@ -371,7 +373,20 @@ public class MainActivity extends Activity {
 
         /** Démarrage automatique possible ? (Android 10+ : permission « par-dessus les autres applis ») */
         @JavascriptInterface public boolean autostartOk() {
-            return Build.VERSION.SDK_INT < 23 || Settings.canDrawOverlays(MainActivity.this);
+            // Avant Android 10, aucune permission n'est nécessaire pour se relancer seule
+            return Build.VERSION.SDK_INT < 29 || Settings.canDrawOverlays(MainActivity.this);
+        }
+        /** Revenir tout seul sur l'affichage (rallumage TV, autre appli laissée ouverte). */
+        @JavascriptInterface public boolean keepFront() { return KeepAliveService.keepFront(MainActivity.this); }
+        @JavascriptInterface public int keepFrontMinutes() { return KeepAliveService.returnMinutes(MainActivity.this); }
+        @JavascriptInterface public void setKeepFront(boolean on) {
+            prefs.edit().putBoolean("keep_front", on).apply();
+            if (on) KeepAliveService.start(MainActivity.this);
+        }
+        @JavascriptInterface public String androidInfo() {
+            String wv = "";
+            try { if (Build.VERSION.SDK_INT >= 26) { android.content.pm.PackageInfo p = WebView.getCurrentWebViewPackage(); if (p != null) wv = p.versionName; } } catch (Throwable ignored) {}
+            return "Android " + Build.VERSION.RELEASE + (wv.isEmpty() ? "" : " · WebView " + wv);
         }
         @JavascriptInterface public void openAutostart() {
             ui.post(() -> {
