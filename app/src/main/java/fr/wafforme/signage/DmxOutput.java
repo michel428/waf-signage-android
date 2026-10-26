@@ -49,6 +49,9 @@ class DmxOutput {
     private Thread loop;
     private volatile boolean running = false;
     private volatile String status = "aucun adaptateur";
+    // Fiabilité (v3.93) : envois ratés comptés, reconnexion automatique
+    private int fails = 0, reconnects = 0;
+    private long lastTry = 0, lastPerm = 0;
 
     /** Une étape d'ambiance : lyres + ruban, durée et fondu d'entrée. */
     private static final class Step {
@@ -97,6 +100,9 @@ class DmxOutput {
             if (dev == null) { status = "aucun adaptateur"; return; }
             if (!usb.hasPermission(dev)) {
                 status = "autorisation USB demandée (valider sur l'écran)";
+                long now = System.currentTimeMillis();
+                if (now - lastPerm < 60000) return;     // pas plus d'une demande par minute
+                lastPerm = now;
                 int fl = Build.VERSION.SDK_INT >= 31 ? PendingIntent.FLAG_MUTABLE : 0;
                 Intent pi = new Intent(ACTION_PERM).setPackage(ctx.getPackageName());
                 usb.requestPermission(dev, PendingIntent.getBroadcast(ctx, 0, pi, fl));
@@ -116,7 +122,7 @@ class DmxOutput {
             ctl(c, REQ_FLOW, 0);                  // pas de contrôle de flux
             ctl(c, REQ_BAUD, 12);                 // 3 MHz / 12 = 250 000 bauds
             ctl(c, REQ_DATA, DATA_8N2);
-            conn = c; out = ep;
+            conn = c; out = ep; fails = 0;
             status = "ok";
             start();
         } catch (Throwable t) { status = "erreur : " + t.getMessage(); closeUsb(); }
@@ -163,12 +169,27 @@ class DmxOutput {
         }
         // Lyres
         UsbDeviceConnection c = conn; UsbEndpoint e = out;
-        if (c == null || e == null) return;
+        if (c == null || e == null) {
+            // Chien de garde : adaptateur absent ou perdu → on réessaie toutes les 10 s
+            long now = System.currentTimeMillis();
+            if (now - lastTry > 10000) { lastTry = now; connect(); }
+            return;
+        }
         // BREAK (≥ 88 µs) puis MARK AFTER BREAK, puis la trame
-        ctl(c, REQ_DATA, DATA_8N2 | BREAK_ON);
+        int a = ctl(c, REQ_DATA, DATA_8N2 | BREAK_ON);
         try { Thread.sleep(1); } catch (InterruptedException ignored) {}
-        ctl(c, REQ_DATA, DATA_8N2);
-        c.bulkTransfer(e, frame, frame.length, 1000);
+        int b = ctl(c, REQ_DATA, DATA_8N2);
+        int n = c.bulkTransfer(e, frame, frame.length, 200);
+        if (a < 0 || b < 0 || n < frame.length) {
+            // ≈ 1 s d'envois ratés : la liaison USB est morte (faux contact, veille USB…) → on referme et on rouvre
+            if (++fails >= 30) {
+                closeUsb(); reconnects++; lastTry = System.currentTimeMillis() - 8000;   // nouvel essai dans ≈ 2 s
+                status = "liaison perdue, reconnexion… (" + reconnects + ")";
+            }
+        } else if (fails > 0) {
+            fails = 0;
+            if (!"ok".equals(status)) status = "ok";
+        }
     }
 
     /**
@@ -315,7 +336,7 @@ class DmxOutput {
 
     private synchronized void closeUsb() {
         try { if (conn != null) conn.close(); } catch (Throwable ignored) {}
-        conn = null; out = null;
+        conn = null; out = null; fails = 0;
     }
 
     synchronized void close() {
