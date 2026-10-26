@@ -383,6 +383,63 @@ public class MainActivity extends Activity {
             prefs.edit().putBoolean("keep_front", on).apply();
             if (on) KeepAliveService.start(MainActivity.this);
         }
+        /** Diagnostic complet de la box (envoyé au Monitoring par signage.js). */
+        @JavascriptInterface public String deviceDiag() {
+            JSONObject o = new JSONObject();
+            try {
+                o.put("maker", Build.MANUFACTURER); o.put("model", Build.MODEL); o.put("device", Build.DEVICE);
+                o.put("board", Build.BOARD); o.put("hardware", Build.HARDWARE);
+                if (Build.VERSION.SDK_INT >= 31) { try { o.put("soc", Build.SOC_MANUFACTURER + " " + Build.SOC_MODEL); } catch (Throwable ignored) {} }
+                o.put("android", Build.VERSION.RELEASE); o.put("sdk", Build.VERSION.SDK_INT);
+                o.put("app", BuildConfig.VERSION_NAME);
+                o.put("cores", Runtime.getRuntime().availableProcessors());
+                try {
+                    android.app.ActivityManager am = (android.app.ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
+                    android.app.ActivityManager.MemoryInfo mi = new android.app.ActivityManager.MemoryInfo();
+                    am.getMemoryInfo(mi);
+                    o.put("ram_mb", mi.totalMem / 1048576L); o.put("ram_free_mb", mi.availMem / 1048576L); o.put("low_ram", am.isLowRamDevice());
+                } catch (Throwable ignored) {}
+                try {
+                    android.view.Display d = getWindowManager().getDefaultDisplay();
+                    android.util.DisplayMetrics dm = new android.util.DisplayMetrics();
+                    d.getRealMetrics(dm);
+                    o.put("screen", dm.widthPixels + "x" + dm.heightPixels); o.put("density", dm.densityDpi);
+                    o.put("hz", Math.round(d.getRefreshRate()));
+                    if (Build.VERSION.SDK_INT >= 23) {
+                        android.view.Display.Mode m = d.getMode();
+                        o.put("mode", m.getPhysicalWidth() + "x" + m.getPhysicalHeight());
+                        int best = 0; String bestS = "";
+                        for (android.view.Display.Mode x : d.getSupportedModes()) { int px = x.getPhysicalWidth() * x.getPhysicalHeight(); if (px > best) { best = px; bestS = x.getPhysicalWidth() + "x" + x.getPhysicalHeight(); } }
+                        o.put("mode_max", bestS);
+                    }
+                } catch (Throwable ignored) {}
+                try { if (Build.VERSION.SDK_INT >= 26) { android.content.pm.PackageInfo p = WebView.getCurrentWebViewPackage(); if (p != null) { o.put("webview", p.versionName); o.put("webview_pkg", p.packageName); } } } catch (Throwable ignored) {}
+                try {
+                    android.os.StatFs st = new android.os.StatFs(getFilesDir().getAbsolutePath());
+                    o.put("disk_free_mb", st.getAvailableBytes() / 1048576L);
+                } catch (Throwable ignored) {}
+                // Adresse IP locale (Wi-Fi ou câble)
+                try {
+                    org.json.JSONArray ips = new org.json.JSONArray();
+                    for (java.net.NetworkInterface ni : java.util.Collections.list(java.net.NetworkInterface.getNetworkInterfaces())) {
+                        if (!ni.isUp() || ni.isLoopback()) continue;
+                        for (java.net.InetAddress a : java.util.Collections.list(ni.getInetAddresses())) {
+                            if (a instanceof java.net.Inet4Address && !a.isLoopbackAddress()) ips.put(ni.getName() + ":" + a.getHostAddress());
+                        }
+                    }
+                    o.put("ip", ips);
+                } catch (Throwable ignored) {}
+                try {
+                    android.net.ConnectivityManager cm = (android.net.ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+                    android.net.NetworkInfo n = cm.getActiveNetworkInfo();
+                    if (n != null) o.put("net", n.getTypeName());
+                } catch (Throwable ignored) {}
+                try {
+                    if (Build.VERSION.SDK_INT >= 17) o.put("anim", Settings.Global.getFloat(getContentResolver(), Settings.Global.ANIMATOR_DURATION_SCALE, 1f));
+                } catch (Throwable ignored) {}
+            } catch (Throwable ignored) {}
+            return o.toString();
+        }
         @JavascriptInterface public String androidInfo() {
             String wv = "";
             try { if (Build.VERSION.SDK_INT >= 26) { android.content.pm.PackageInfo p = WebView.getCurrentWebViewPackage(); if (p != null) wv = p.versionName; } } catch (Throwable ignored) {}
