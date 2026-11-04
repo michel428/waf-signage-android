@@ -73,6 +73,13 @@ class DmxOutput {
     private final AudioLink audio = new AudioLink();
     private volatile boolean musicOn = false;                // ambiance du moment : réagit à la musique ?
     private volatile float mDepth = 0.55f, mMove = 1f, mColor = 1f;
+    // Style « libre » : la musique choisit elle-même couleurs et mouvements
+    private volatile boolean mFree = false;
+    private volatile int[][] mFx = new int[0][];             // pan, tilt, dim, r, g, b, w de chaque projecteur
+    private float hue = 0.9f, hueBeat = 0f, mid = 0f, high = 0f, amp = 0.4f;
+    private int beats = 0;
+    private boolean newBeat = false;
+    private static final String[] FREE_SHAPES = {"circle", "eight", "ballyhoo", "line2", "orbit", "lissajous", "pendulum", "flower"};
     private long clockM = System.currentTimeMillis(), clockC = clockM, lastTick = 0;
     private float mix = 0, env = 0, pulse = 0, energy = 0;
     private int lastBeat = -1;
@@ -282,7 +289,8 @@ class DmxOutput {
         env += ((fresh ? audio.bass : 0) - env) * 0.45f * a;              // basses lissées
         energy += (lv - energy) * 0.15f * a;                              // énergie générale (lente)
         int b = audio.beatSeq;
-        if (fresh && b != lastBeat) { if (lastBeat >= 0) pulse = 1f; lastBeat = b; }
+        newBeat = false;
+        if (fresh && b != lastBeat) { if (lastBeat >= 0) { pulse = 1f; newBeat = true; } lastBeat = b; }
         pulse *= (float) Math.exp(-dt / 300.0);
         float rm = 1f + mix * mMove * (1.3f * energy + 0.9f * pulse);
         float rc = 1f + mix * mColor * (1.0f * energy + 3.0f * pulse);
@@ -290,14 +298,70 @@ class DmxOutput {
         clockC += Math.round(dt * Math.min(5f, rc));
         if (now - replyAt > 1000) { replyAt = now; audio.setReply((musicOn ? "musique" : "normal") + "|" + (active ? 1 : 0) + "|" + status); }
         float[] t = p.compute(clockM, clockC);
+        if (mix > 0 && mFree) free(t, dt, now);
         if (mix > 0) {
             float k = 1f - mDepth * mix * (1f - Math.max(0f, Math.min(1f, env)));
-            for (int[] f : p.fixtures()) {
+            for (int[] f : (mFree && mFx.length > 0 ? mFx : p.fixtures())) {
                 if (f[2] > 0) { t[f[2]] *= k; continue; }                 // canal intensité
                 for (int j = 3; j <= 6; j++) if (f[j] > 0) t[f[j]] *= k;  // sinon on assombrit la couleur
             }
         }
         return t;
+    }
+
+    /**
+     * Style « libre » : les couleurs viennent du son (basses → rouge / rose, médiums → orange / jaune,
+     * aigus → bleu / cyan), la teinte avance sur chaque temps fort et se décale d'une lyre à l'autre ;
+     * le mouvement grandit avec l'énergie et change de forme toutes les 32 temps.
+     * Tout est lissé (≈ 0,5 s pour la couleur) : pas de saut de couleur, pas de flash.
+     */
+    private void free(float[] t, long dt, long now) {
+        float a = Math.min(1f, dt / 33f);
+        boolean fr = audio.fresh(now);
+        mid += ((fr ? audio.mid : 0) - mid) * 0.2f * a;
+        high += ((fr ? audio.high : 0) - high) * 0.2f * a;
+        if (newBeat) { hueBeat += 0.07f; beats++; }                 // nouveau temps fort
+        // Teinte : moyenne « circulaire » des 3 couleurs, pondérée par la force de chaque bande
+        double wb = env + 0.05, wm = mid, wh = high;
+        double x = wb * Math.cos(2 * Math.PI * 0.95) + wm * Math.cos(2 * Math.PI * 0.11) + wh * Math.cos(2 * Math.PI * 0.58);
+        double y = wb * Math.sin(2 * Math.PI * 0.95) + wm * Math.sin(2 * Math.PI * 0.11) + wh * Math.sin(2 * Math.PI * 0.58);
+        float target = (float) (((Math.atan2(y, x) / (2 * Math.PI)) + 1) % 1.0 + hueBeat) % 1f;
+        float d = target - hue; if (d > 0.5f) d -= 1f; if (d < -0.5f) d += 1f;
+        hue = (hue + d * Math.min(1f, dt / 500f) + 1f) % 1f;               // la couleur glisse vers la cible
+        amp += ((0.35f + 0.65f * Math.min(1f, energy * 1.4f)) - amp) * Math.min(1f, dt / 800f);
+        String shape = FREE_SHAPES[(beats / 32) % FREE_SHAPES.length];
+        int n = mFx.length;
+        double ph = 2 * Math.PI * (clockM % 12000) / 12000.0;
+        for (int i = 0; i < n; i++) {
+            int[] f = mFx[i];
+            float[] c = hsv((hue + (n > 1 ? i * 0.08f : 0)) % 1f);
+            float wv = Math.max(0, high - 0.6f) * 2.5f * 255f * 0.5f;      // aigus très présents : un peu de blanc
+            blend(t, f[3], c[0]); blend(t, f[4], c[1]); blend(t, f[5], c[2]); blend(t, f[6], Math.min(255, wv));
+            if (f[2] > 0) blend(t, f[2], 255);
+            if (f[0] > 0 || f[1] > 0) {
+                double[] xy = DmxProgram.shape(shape, ph + i * Math.PI / Math.max(1, n) * 2, ph * 1.7 + i);
+                blend(t, f[0], 127 + 110 * amp * xy[0]);
+                blend(t, f[1], 127 + 110 * amp * xy[1]);
+            }
+        }
+    }
+
+    private void blend(float[] t, int ch, double v) {
+        if (ch < 1 || ch > 512) return;
+        t[ch] = (float) (t[ch] * (1 - mix) + Math.max(0, Math.min(255, v)) * mix);
+    }
+
+    private static float[] hsv(float h) {
+        double r, g, b; int k = (int) (h * 6); double f = h * 6 - k;
+        switch (k % 6) {
+            case 0: r = 1; g = f; b = 0; break;
+            case 1: r = 1 - f; g = 1; b = 0; break;
+            case 2: r = 0; g = 1; b = f; break;
+            case 3: r = 0; g = 1 - f; b = 1; break;
+            case 4: r = f; g = 0; b = 1; break;
+            default: r = 1; g = 0; b = 1 - f;
+        }
+        return new float[]{(float) (r * 255), (float) (g * 255), (float) (b * 255)};
     }
 
     /**
@@ -359,7 +423,18 @@ class DmxOutput {
             mDepth = (float) Math.max(0, Math.min(0.75, mu.optDouble("depth", 0.55)));
             mMove = (float) Math.max(0, Math.min(2, mu.optDouble("move", 1)));
             mColor = (float) Math.max(0, Math.min(2, mu.optDouble("color", 1)));
-        }
+            mFree = "libre".equals(mu.optString("style", "tempo"));
+            JSONArray mf = mu.optJSONArray("fx");
+            if (mf != null) {
+                int[][] l = new int[mf.length()][];
+                for (int i = 0; i < mf.length(); i++) {
+                    JSONObject x = mf.optJSONObject(i);
+                    if (x == null) x = new JSONObject();
+                    l[i] = new int[]{x.optInt("pan"), x.optInt("tilt"), x.optInt("dim"), x.optInt("r"), x.optInt("g"), x.optInt("b"), x.optInt("w")};
+                }
+                mFx = l;
+            }
+        } else mFree = false;
         if (seq != null && seq.length() > 0) {
             java.util.ArrayList<Step> l = new java.util.ArrayList<>();
             for (int i = 0; i < seq.length(); i++) {
