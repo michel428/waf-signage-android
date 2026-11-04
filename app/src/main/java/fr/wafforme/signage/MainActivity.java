@@ -35,6 +35,8 @@ import android.webkit.ConsoleMessage;
 import android.webkit.SslErrorHandler;
 import android.net.http.SslError;
 import org.json.JSONObject;
+import androidx.webkit.WebViewCompat;
+import androidx.webkit.WebViewFeature;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
@@ -87,6 +89,7 @@ public class MainActivity extends Activity {
         root = new android.widget.FrameLayout(this);
         root.setBackgroundColor(Color.parseColor("#0d0b0b"));
         setContentView(root);
+        applyDisplayMode();
         video = new NativeVideo(this, root, code -> ui.post(() -> { if (web != null) web.evaluateJavascript(code, null); }));
         buildWebView();
         // Lumières : adaptateur USB-DMX (FT232R) branché sur la box → lyres pilotées par les playlists
@@ -107,6 +110,79 @@ public class MainActivity extends Activity {
         if (dmx != null && intent != null && android.hardware.usb.UsbManager.ACTION_USB_DEVICE_ATTACHED.equals(intent.getAction())) dmx.connect();
         // Touche HOME quand l'appli est le lanceur : on reste sur l'écran en cours
         hideSystemUi();
+    }
+
+    // ── v2.2 : vidéo YouTube en H.264 + sortie vidéo en 1080p ──
+    private static final String H264_JS =
+        "(function(){var bad=/vp0?9|av01|av1|vp8/i;" +
+        "try{if(window.MediaSource&&MediaSource.isTypeSupported){var o=MediaSource.isTypeSupported.bind(MediaSource);" +
+        "MediaSource.isTypeSupported=function(t){return bad.test(t)?false:o(t);};}}catch(e){}" +
+        "try{if(window.ManagedMediaSource&&ManagedMediaSource.isTypeSupported){var m=ManagedMediaSource.isTypeSupported.bind(ManagedMediaSource);" +
+        "ManagedMediaSource.isTypeSupported=function(t){return bad.test(t)?false:m(t);};}}catch(e){}" +
+        "try{var c=HTMLMediaElement.prototype.canPlayType;HTMLMediaElement.prototype.canPlayType=function(t){return bad.test(t)?'':c.call(this,t);};}catch(e){}" +
+        "try{if(navigator.mediaCapabilities&&navigator.mediaCapabilities.decodingInfo){var d=navigator.mediaCapabilities.decodingInfo.bind(navigator.mediaCapabilities);" +
+        "navigator.mediaCapabilities.decodingInfo=function(c){var t=c&&c.video&&c.video.contentType||'';" +
+        "return bad.test(t)?Promise.resolve({supported:false,smooth:false,powerEfficient:false}):d(c);};}}catch(e){}})();";
+    private String h264State = "?", resState = "?";
+
+    private long ramMb() {
+        try {
+            android.app.ActivityManager am = (android.app.ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
+            android.app.ActivityManager.MemoryInfo mi = new android.app.ActivityManager.MemoryInfo();
+            am.getMemoryInfo(mi);
+            return mi.totalMem / 1048576L;
+        } catch (Throwable e) { return 0; }
+    }
+
+    /**
+     * Sortie vidéo : si la box envoie du 4K (alors que l'affichage est prévu en 1080p), on lui demande
+     * du 1920×1080 pour cette appli → 4 fois moins de pixels à dessiner, beaucoup plus fluide.
+     * Désactivable : réglage « res » = "native".
+     */
+    private void applyDisplayMode() {
+        if (Build.VERSION.SDK_INT < 23) { resState = "non réglable (Android trop ancien)"; return; }
+        try {
+            android.view.Display d = getWindowManager().getDefaultDisplay();
+            android.view.Display.Mode cur = d.getMode();
+            if ("native".equals(prefs.getString("res", "auto"))) { resState = "native (" + cur.getPhysicalWidth() + "x" + cur.getPhysicalHeight() + ")"; return; }
+            if (cur.getPhysicalWidth() <= 1920) { resState = "ok (" + cur.getPhysicalWidth() + "x" + cur.getPhysicalHeight() + ")"; return; }
+            android.view.Display.Mode best = null;
+            for (android.view.Display.Mode m : d.getSupportedModes()) {
+                if (m.getPhysicalWidth() > 1920 || m.getPhysicalHeight() > 1080) continue;
+                if (best == null) { best = m; continue; }
+                long px = (long) m.getPhysicalWidth() * m.getPhysicalHeight(), bp = (long) best.getPhysicalWidth() * best.getPhysicalHeight();
+                float dm = Math.abs(m.getRefreshRate() - cur.getRefreshRate()), db = Math.abs(best.getRefreshRate() - cur.getRefreshRate());
+                if (px > bp || (px == bp && dm < db)) best = m;
+            }
+            if (best == null) { resState = "pas de mode 1080p (" + cur.getPhysicalWidth() + "x" + cur.getPhysicalHeight() + ")"; return; }
+            WindowManager.LayoutParams lp = getWindow().getAttributes();
+            lp.preferredDisplayModeId = best.getModeId();
+            getWindow().setAttributes(lp);
+            resState = "1080p demandé (" + best.getPhysicalWidth() + "x" + best.getPhysicalHeight() + " " + Math.round(best.getRefreshRate()) + " Hz, au lieu de " + cur.getPhysicalWidth() + "x" + cur.getPhysicalHeight() + ")";
+        } catch (Throwable e) { resState = "erreur"; }
+    }
+
+    /** Décodeurs vidéo matériels de la box (pour le Monitoring). */
+    private static String hwCodecs() {
+        StringBuilder sb = new StringBuilder();
+        try {
+            android.media.MediaCodecList l = new android.media.MediaCodecList(android.media.MediaCodecList.ALL_CODECS);
+            String[][] want = {{"video/avc", "H.264"}, {"video/hevc", "HEVC"}, {"video/x-vnd.on2.vp9", "VP9"}, {"video/av01", "AV1"}};
+            for (String[] w : want) {
+                boolean hw = false;
+                for (android.media.MediaCodecInfo ci : l.getCodecInfos()) {
+                    if (ci.isEncoder()) continue;
+                    boolean has = false; for (String t : ci.getSupportedTypes()) if (t.equalsIgnoreCase(w[0])) has = true;
+                    if (!has) continue;
+                    String n = ci.getName().toLowerCase(java.util.Locale.ROOT);
+                    boolean sw = n.startsWith("omx.google.") || n.startsWith("c2.android.") || n.contains(".sw.") || n.contains("ffmpeg");
+                    if (Build.VERSION.SDK_INT >= 29) sw = sw || ci.isSoftwareOnly();
+                    if (!sw) hw = true;
+                }
+                if (hw) sb.append(sb.length() > 0 ? ", " : "").append(w[1]);
+            }
+        } catch (Throwable ignored) {}
+        return sb.length() > 0 ? sb.toString() : "aucun trouvé";
     }
 
     @SuppressLint({"SetJavaScriptEnabled", "AddJavascriptInterface"})
@@ -138,6 +214,24 @@ public class MainActivity extends Activity {
         s.setDisplayZoomControls(false);
         s.setTextZoom(100);
         s.setUserAgentString(s.getUserAgentString() + " WAFSignageApp/" + BuildConfig.VERSION_NAME);
+
+        // ── Allègement (v2.2), comme sur le PC Linux ──
+        // Page d'affichage prioritaire sur tout le reste de la box
+        if (Build.VERSION.SDK_INT >= 26) { try { web.setRendererPriorityPolicy(WebView.RENDERER_PRIORITY_IMPORTANT, true); } catch (Throwable ignored) {} }
+        // Animations plus fluides (la page est pré-dessinée) si la box a assez de mémoire
+        if (Build.VERSION.SDK_INT >= 23 && ramMb() >= 1500) { try { s.setOffscreenPreRaster(true); } catch (Throwable ignored) {} }
+        // YouTube : on lui fait croire que seule la vidéo H.264 est lue → il envoie du H.264,
+        // décodé par la puce vidéo de la box (le VP9 / AV1 est décodé par le processeur → saccades)
+        h264State = "indisponible (WebView trop ancienne)";
+        if (prefs.getBoolean("h264", true)) {
+            try {
+                if (WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)) {
+                    WebViewCompat.addDocumentStartJavaScript(web, H264_JS, new java.util.HashSet<>(java.util.Arrays.asList(
+                        "https://www.youtube.com", "https://youtube.com", "https://www.youtube-nocookie.com", "https://m.youtube.com")));
+                    h264State = "actif";
+                }
+            } catch (Throwable e) { h264State = "erreur"; }
+        } else h264State = "désactivé";
 
         web.addJavascriptInterface(new Bridge(), "WafApp");
         web.setWebChromeClient(new WebChromeClient() {
@@ -377,6 +471,16 @@ public class MainActivity extends Activity {
             return Build.VERSION.SDK_INT < 29 || Settings.canDrawOverlays(MainActivity.this);
         }
         /** Revenir tout seul sur l'affichage (rallumage TV, autre appli laissée ouverte). */
+        // v2.2 : allègement réglable depuis le menu de la box
+        @JavascriptInterface public boolean optH264() { return prefs.getBoolean("h264", true); }
+        @JavascriptInterface public boolean optRes1080() { return !"native".equals(prefs.getString("res", "auto")); }
+        @JavascriptInterface public String optInfo() { return "YouTube H.264 : " + h264State + " · sortie : " + resState + " · décodeurs : " + hwCodecs(); }
+        @JavascriptInterface public void setOpt(String k, boolean on) {
+            if ("h264".equals(k)) prefs.edit().putBoolean("h264", on).apply();
+            else if ("res".equals(k)) prefs.edit().putString("res", on ? "auto" : "native").apply();
+            else return;
+            ui.postDelayed(() -> appRestart(), 400);   // appliqué au redémarrage de l'appli
+        }
         @JavascriptInterface public boolean keepFront() { return KeepAliveService.keepFront(MainActivity.this); }
         @JavascriptInterface public int keepFrontMinutes() { return KeepAliveService.returnMinutes(MainActivity.this); }
         @JavascriptInterface public void setKeepFront(boolean on) {
@@ -437,6 +541,7 @@ public class MainActivity extends Activity {
                 try {
                     if (Build.VERSION.SDK_INT >= 17) o.put("anim", Settings.Global.getFloat(getContentResolver(), Settings.Global.ANIMATOR_DURATION_SCALE, 1f));
                 } catch (Throwable ignored) {}
+                try { o.put("yt_h264", h264State); o.put("res_out", resState); o.put("hw_video", hwCodecs()); } catch (Throwable ignored) {}
             } catch (Throwable ignored) {}
             return o.toString();
         }

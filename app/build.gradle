@@ -52,3 +52,8 @@ android {
         checkReleaseBuilds false
     }
 }
+
+dependencies {
+    // v2.2 : script injecté au chargement des vidéos YouTube (forcer le H.264, décodé par la puce vidéo)
+    implementation 'androidx.webkit:webkit:1.8.0'
+}

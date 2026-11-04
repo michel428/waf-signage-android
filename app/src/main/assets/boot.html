@@ -215,6 +215,11 @@ h1{font-weight:700;font-size:calc(6.5*var(--u));line-height:1;letter-spacing:-.0
     <button class="btn chk" data-go="update" id="btnUpd"><span>Rechercher une mise à jour</span></button>
     <button class="btn chk" data-go="settings" id="btnSettings"><span>Paramètres Android</span></button>
   </div>
+  <div class="checks" id="optRow" style="display:none">
+    <button class="btn chk" id="chkH264" data-go="opt-h264"><span class="dot"></span><span>Vidéos YouTube allégées (H.264)</span></button>
+    <button class="btn chk" id="chkRes" data-go="opt-res"><span class="dot"></span><span>Sortie vidéo en 1080p</span></button>
+  </div>
+  <div class="note" id="optInfo" style="color:var(--mute)"></div>
   <div class="checks" id="bleRow" style="display:none">
     <button class="btn chk" id="chkBle" data-go="ble"><span class="dot"></span><span>Ruban LED : connecter</span></button>
     <button class="btn chk" data-go="bletest"><span>Tester le ruban</span></button>
@@ -299,6 +304,8 @@ h1{font-weight:700;font-size:calc(6.5*var(--u));line-height:1;letter-spacing:-.0
     else if (go === 'settings') A.openSettings();
     else if (go === 'autostart') A.openAutostart();
     else if (go === 'launcher') A.openLauncherSettings();
+    else if (go === 'opt-h264' && A.setOpt) { $('optInfo').textContent = 'Redémarrage de l\'appli…'; A.setOpt('h264', !A.optH264()); }
+    else if (go === 'opt-res' && A.setOpt) { $('optInfo').textContent = 'Redémarrage de l\'appli…'; A.setOpt('res', !A.optRes1080()); }
     else if (go === 'front') { if (A.setKeepFront) { A.setKeepFront(!A.keepFront()); refreshChecks(); } }
     else if (go === 'updperm') { if (A.openUpdatesPermission) A.openUpdatesPermission(); }
     else if (go === 'update') { if (A.checkUpdate) { $('updInfo').textContent = 'Recherche d\'une mise à jour…'; A.checkUpdate(); } }
@@ -324,6 +331,11 @@ h1{font-weight:700;font-size:calc(6.5*var(--u));line-height:1;letter-spacing:-.0
       el.querySelectorAll('span')[1].textContent = kf ? 'Revient seul à l\'affichage (' + A.keepFrontMinutes() + ' min)' : 'Revenir seul à l\'affichage : non';
     }
     ['chkHome','chkHome2'].forEach(function(id){ var el = $(id); if (el) el.classList.toggle('ok', h); });
+    if (A.optH264 && $('optRow')) {
+      $('optRow').style.display = '';
+      $('chkH264').classList.toggle('ok', !!A.optH264()); $('chkRes').classList.toggle('ok', !!A.optRes1080());
+      try { $('optInfo').textContent = A.optInfo(); } catch(e){}
+    }
     bleRefresh();
   }
   // ── Ruban LED : état mis à jour chaque seconde tant que le menu est affiché ──
