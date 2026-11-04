@@ -69,10 +69,21 @@ class DmxOutput {
     private final float[] sCur = new float[3];               // couleur actuelle du ruban (lissée)
     private final Object lock = new Object();
 
+    // ── Mode musique (v2.1) : son reçu du PC musique (AudioLink) ──
+    private final AudioLink audio = new AudioLink();
+    private volatile boolean musicOn = false;                // ambiance du moment : réagit à la musique ?
+    private volatile float mDepth = 0.55f, mMove = 1f, mColor = 1f;
+    private long clockM = System.currentTimeMillis(), clockC = clockM, lastTick = 0;
+    private float mix = 0, env = 0, pulse = 0, energy = 0;
+    private int lastBeat = -1;
+    private long silentSince = 0;
+    private long replyAt = 0;
+
     DmxOutput(Context c, BleStrip.PermissionAsker asker) {
         ctx = c.getApplicationContext();
         usb = (UsbManager) ctx.getSystemService(Context.USB_SERVICE);
         strip = new BleStrip(ctx, asker);
+        audio.start();
         IntentFilter f = new IntentFilter(ACTION_PERM);
         f.addAction(UsbManager.ACTION_USB_DEVICE_ATTACHED);
         f.addAction(UsbManager.ACTION_USB_DEVICE_DETACHED);
@@ -81,7 +92,11 @@ class DmxOutput {
     }
 
     /** Statut affiché dans l'admin : « ok » ou le problème de l'adaptateur DMX, + le ruban s'il est utilisé. */
-    String status() { return strip.used() ? status + " · ruban : " + strip.status() : status; }
+    String status() {
+        String s = strip.used() ? status + " · ruban : " + strip.status() : status;
+        if (audio.fresh(System.currentTimeMillis())) s += " · son : " + (musicOn ? "en rythme" : "reçu (ambiance sans musique)");
+        return s;
+    }
 
     private final BroadcastReceiver rx = new BroadcastReceiver() {
         @Override public void onReceive(Context c, Intent i) {
@@ -230,7 +245,7 @@ class DmxOutput {
             }
         }
         Step st = steps[idx];
-        float[] target = st.p.compute(now);
+        float[] target = music(st.p, now);
         float p = fadeMs <= 0 ? 1f : Math.min(1f, (now - fadeStart) / (float) fadeMs);
         frame[0] = 0;
         for (int i = 1; i <= 512; i++) {
@@ -246,6 +261,43 @@ class DmxOutput {
             }
         }
         return st;
+    }
+
+    /**
+     * Mode musique : les horloges des mouvements et des couleurs accélèrent avec l'énergie
+     * et sur chaque temps fort (« poussée » qui retombe en 0,3 s), et l'intensité respire
+     * avec les basses, sans jamais descendre sous (1 − profondeur) : pas de flash, pas de noir.
+     */
+    private float[] music(DmxProgram p, long now) {
+        long dt = lastTick == 0 ? 33 : Math.max(0, Math.min(200, now - lastTick));
+        lastTick = now;
+        boolean fresh = audio.fresh(now);
+        float lv = fresh ? audio.lvl : 0;
+        if (lv < 0.03f) { if (silentSince == 0) silentSince = now; } else silentSince = 0;
+        boolean active = musicOn && fresh && (silentSince == 0 || now - silentSince < 1500);
+        // Entrée / sortie du mode musique en douceur (≈ 1 s)
+        mix += ((active ? 1f : 0f) - mix) * Math.min(1f, dt / 1000f * 2.5f);
+        if (mix < 0.002f) mix = 0;
+        float a = Math.min(1f, dt / 33f);
+        env += ((fresh ? audio.bass : 0) - env) * 0.45f * a;              // basses lissées
+        energy += (lv - energy) * 0.15f * a;                              // énergie générale (lente)
+        int b = audio.beatSeq;
+        if (fresh && b != lastBeat) { if (lastBeat >= 0) pulse = 1f; lastBeat = b; }
+        pulse *= (float) Math.exp(-dt / 300.0);
+        float rm = 1f + mix * mMove * (1.3f * energy + 0.9f * pulse);
+        float rc = 1f + mix * mColor * (1.0f * energy + 3.0f * pulse);
+        clockM += Math.round(dt * Math.min(4f, rm));
+        clockC += Math.round(dt * Math.min(5f, rc));
+        if (now - replyAt > 1000) { replyAt = now; audio.setReply((musicOn ? "musique" : "normal") + "|" + (active ? 1 : 0) + "|" + status); }
+        float[] t = p.compute(clockM, clockC);
+        if (mix > 0) {
+            float k = 1f - mDepth * mix * (1f - Math.max(0f, Math.min(1f, env)));
+            for (int[] f : p.fixtures()) {
+                if (f[2] > 0) { t[f[2]] *= k; continue; }                 // canal intensité
+                for (int j = 3; j <= 6; j++) if (f[j] > 0) t[f[j]] *= k;  // sinon on assombrit la couleur
+            }
+        }
+        return t;
     }
 
     /**
@@ -301,6 +353,13 @@ class DmxOutput {
         Step[] ns;
         JSONArray seq = o.optJSONArray("seq");
         JSONObject stripCfg = o.optJSONObject("strip");
+        JSONObject mu = o.optJSONObject("music");
+        musicOn = mu != null;
+        if (mu != null) {
+            mDepth = (float) Math.max(0, Math.min(0.75, mu.optDouble("depth", 0.55)));
+            mMove = (float) Math.max(0, Math.min(2, mu.optDouble("move", 1)));
+            mColor = (float) Math.max(0, Math.min(2, mu.optDouble("color", 1)));
+        }
         if (seq != null && seq.length() > 0) {
             java.util.ArrayList<Step> l = new java.util.ArrayList<>();
             for (int i = 0; i < seq.length(); i++) {
@@ -348,6 +407,7 @@ class DmxOutput {
 
     void destroy() {
         close();
+        audio.stop();
         strip.disconnect();
         try { ctx.unregisterReceiver(rx); } catch (Throwable ignored) {}
     }

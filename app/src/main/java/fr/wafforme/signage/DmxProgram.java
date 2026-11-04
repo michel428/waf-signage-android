@@ -99,7 +99,18 @@ final class DmxProgram {
 
     private static float clamp(double v) { return (float) Math.max(0, Math.min(255, v)); }
 
-    float[] compute(long now) {
+    float[] compute(long now) { return compute(now, now); }
+
+    /** Canaux intensité (ou, à défaut, r g b w) de chaque lyre : pour le mode musique. */
+    int[][] fixtures() { return fx; }
+
+    /**
+     * v2.1 : deux horloges — mouvements (tm) et couleurs (tc). Sans musique elles avancent
+     * comme le temps réel ; avec la musique, la box les fait accélérer sur les temps forts
+     * (toujours en continu : aucun saut, aucun flash).
+     */
+    float[] compute(long tm, long tc) {
+        long now = tm;
         System.arraycopy(base, 0, out, 0, out.length);
         int n = fx.length;
         // ── Mouvements ──
@@ -119,7 +130,7 @@ final class DmxProgram {
         // ── Couleurs / intensité ──
         if (cmode != null && n > 0) {
             for (int i = 0; i < n; i++) {
-                float[] c = color(now, i, n);
+                float[] c = color(tc, i, n);
                 if (c == null) continue;
                 float k = 1f;
                 if (c.length > 4) {
